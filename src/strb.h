@@ -76,7 +76,10 @@ GPUARRAY_LOCAL void strb_appendf(strb *, const char *, ...);
 
 static inline const char *strb_cstr(strb *sb) {
   strb_append0(sb);
-  if (strb_error(sb)) return NULL;
+  if (strb_error(sb)) {
+    strb_clear(sb);
+    return NULL;
+  }
   sb->l--;
   return sb->s;
 }
