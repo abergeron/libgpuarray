@@ -5,6 +5,7 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
 
 find_package(CUDA)
 find_package(OpenCL)
+find_package(Sqlite3)
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -83,6 +84,14 @@ if(OPENCL_FOUND)
   endif()
 endif()
 
+if(SQLITE3_FOUND)
+  set(GPUARRAY_SRC ${GPUARRAY_SRC} gpuarray_cache_sql.c)
+  include_directories("${SQLITE3_INCLUDE_DIRS}")
+else()
+  set(GPUARRAY_SRC ${GPUARRAY_SRC} gpuarray_cache_null.c)
+endif()
+
+
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/private_config.h.in
   ${CMAKE_CURRENT_SOURCE_DIR}/private_config.h
@@ -110,6 +119,11 @@ if(OPENCL_FOUND)
     target_link_libraries(gpuarray ${CLBLAS_LIBRARIES})
     target_link_libraries(gpuarray-static ${CLBLAS_LIBRARIES})
   endif()
+endif()
+
+if(SQLITE3_FOUND)
+  target_link_libraries(gpuarray ${SQLITE3_LIBRARIES})
+  target_link_libraries(gpuarray-static ${SQLITE3_LIBRARIES})
 endif()
 
 SET(headers

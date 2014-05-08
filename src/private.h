@@ -85,6 +85,11 @@ GPUARRAY_LOCAL int gpuarray_elem_perdim(char *strs[], unsigned int *count,
 
 #define nelems(a) (sizeof(a)/sizeof(a[0]))
 
+GPUARRAY_LOCAL int cache_put(const char *kind, const char *devname,
+                             const char *code, void *bin, size_t sz);
+GPUARRAY_LOCAL int cache_get(const char *kind, const char *devname,
+                             const char *code, void **bin, size_t *sz);
+
 #ifdef __cplusplus
 }
 #endif
