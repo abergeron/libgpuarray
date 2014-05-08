@@ -11,6 +11,7 @@
 #include "gpuarray/config.h"
 #include "gpuarray/array.h"
 #include "gpuarray/types.h"
+#include "gpuarray/error.h"
 
 #ifdef __cplusplus
 extern "C" {
