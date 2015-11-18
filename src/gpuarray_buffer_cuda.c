@@ -26,6 +26,9 @@
    Also, they will be aligned to this size. */
 #define FRAG_SIZE (16)
 
+/* Block size for transfers */
+#define TRANSFER_BLOCK_SIZE (16 * 1024 * 1024)
+
 static CUresult err;
 
 static void cuda_freekernel(gpukernel *);
@@ -51,6 +54,7 @@ void *cuda_make_ctx(CUcontext ctx, int flags) {
   res->refcnt = 1;
   res->flags = flags;
   res->enter = 0;
+  res->mem_id = 0;
   res->freeblocks = NULL;
   if (detect_arch(ARCH_PREFIX, res->bin_id, &err)) {
     goto fail_cache;
@@ -70,6 +74,22 @@ void *cuda_make_ctx(CUcontext ctx, int flags) {
   if (err != CUDA_SUCCESS) {
     goto fail_mem_stream;
   }
+  err = cuEventCreate(&res->mem_e[0], CU_EVENT_DISABLE_TIMING);
+  if (err != CUDA_SUCCESS) {
+    goto fail_memev_0;
+  }
+  err = cuEventCreate(&res->mem_e[1], CU_EVENT_DISABLE_TIMING);
+  if (err != CUDA_SUCCESS) {
+    goto fail_memev_1;
+  }
+  err = cuMemAllocHost(&res->mem_b[0], TRANSFER_BLOCK_SIZE);
+  if (err != CUDA_SUCCESS) {
+    goto fail_membuf_0;
+  }
+  err = cuMemAllocHost(&res->mem_b[1], TRANSFER_BLOCK_SIZE);
+  if (err != CUDA_SUCCESS) {
+    goto fail_membuf_1;
+  }
   err = cuMemAllocHost(&p, 16);
   if (err != CUDA_SUCCESS) {
     goto fail_errbuf;
@@ -87,6 +107,14 @@ void *cuda_make_ctx(CUcontext ctx, int flags) {
  fail_end:
   cuMemFreeHost(p);
  fail_errbuf:
+  cuMemFreeHost(res->mem_b[1]);
+ fail_membuf_1:
+  cuMemFreeHost(res->mem_b[0]);
+ fail_membuf_0:
+  cuEventDestroy(res->mem_e[1]);
+ fail_memev_1:
+  cuEventDestroy(res->mem_e[0]);
+ fail_memev_0:
   cuStreamDestroy(res->mem_s);
  fail_mem_stream:
   cuStreamDestroy(res->s);
@@ -114,6 +142,12 @@ static void cuda_free_ctx(cuda_context *ctx) {
     }
     cuMemFreeHost((void *)ctx->errbuf->ptr);
     deallocate(ctx->errbuf);
+
+    cuMemFreeHost(ctx->mem_b[0]);
+    cuMemFreeHost(ctx->mem_b[1]);
+    cuEventDestroy(ctx->mem_e[0]);
+    cuEventDestroy(ctx->mem_e[1]);
+    cuStreamDestroy(ctx->mem_s);
 
     cuStreamDestroy(ctx->s);
 
@@ -623,6 +657,8 @@ static int cuda_read(void *dst, gpudata *src, size_t srcoff, size_t sz) {
       return GA_IMPL_ERROR;
     }
     cuda_records(src, CUDA_WAIT_READ, ctx->mem_s);
+    /* Make sure the transfer is finished */
+    cuEventSynchronize(src->ev);
 
     cuda_exit(ctx);
     return GA_NO_ERROR;
@@ -630,28 +666,38 @@ static int cuda_read(void *dst, gpudata *src, size_t srcoff, size_t sz) {
 
 static int cuda_write(gpudata *dst, size_t dstoff, const void *src,
                       size_t sz) {
-    cuda_context *ctx = dst->ctx;
+  cuda_context *ctx = dst->ctx;
 
-    ASSERT_BUF(dst);
+  ASSERT_BUF(dst);
 
-    if (sz == 0) return GA_NO_ERROR;
+  if (sz == 0) return GA_NO_ERROR;
 
-    if ((dst->sz - dstoff) < sz)
-        return GA_VALUE_ERROR;
+  if ((dst->sz - dstoff) < sz)
+    return GA_VALUE_ERROR;
 
-    cuda_enter(ctx);
+  cuda_enter(ctx);
 
-    cuda_waits(dst, CUDA_WAIT_WRITE, ctx->mem_s);
+  cuda_waits(dst, CUDA_WAIT_WRITE, ctx->mem_s);
 
-    ctx->err = cuMemcpyHtoDAsync(dst->ptr + dstoff, src, sz, ctx->mem_s);
+  while (sz > 0) {
+    size_t curtrans = sz > TRANSFER_BLOCK_SIZE ? TRANSFER_BLOCK_SIZE : sz;
+    cuEventSynchronize(ctx->mem_e[ctx->mem_id]);
+    memcpy(ctx->mem_b[ctx->mem_id], src, curtrans);
+    ctx->err = cuMemcpyHtoDAsync(dst->ptr + dstoff, ctx->mem_b[ctx->mem_id],
+                                 curtrans, ctx->mem_s);
     if (ctx->err != CUDA_SUCCESS) {
       cuda_exit(ctx);
       return GA_IMPL_ERROR;
     }
+    cuEventRecord(ctx->mem_e[ctx->mem_id], ctx->mem_s);
+    sz -= curtrans;
+    dstoff += curtrans;
+    ctx->mem_id = ctx->mem_id ? 0 : 1;
+  }
 
-    cuda_records(dst, CUDA_WAIT_WRITE, ctx->mem_s);
-    cuda_exit(ctx);
-    return GA_NO_ERROR;
+  cuda_records(dst, CUDA_WAIT_WRITE, ctx->mem_s);
+  cuda_exit(ctx);
+  return GA_NO_ERROR;
 }
 
 static int cuda_memset(gpudata *dst, size_t dstoff, int data) {

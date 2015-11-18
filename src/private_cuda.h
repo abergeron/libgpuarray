@@ -51,14 +51,17 @@ typedef struct _cuda_context {
   CUresult err;
   CUstream s;
   CUstream mem_s;
+  void *mem_b[2];
+  CUevent mem_e[2];
   void *blas_handle;
   gpudata *errbuf;
   cache *extcopy_cache;
+  gpudata *freeblocks;
   char bin_id[BIN_ID_LEN];
   unsigned int refcnt;
   int flags;
   unsigned int enter;
-  gpudata *freeblocks;
+  int mem_id;
 } cuda_context;
 
 /*
