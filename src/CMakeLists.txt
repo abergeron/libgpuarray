@@ -68,6 +68,13 @@ if (CUDA_FOUND)
   endif()
 endif()
 
+if (OPENCL_FOUND)
+  if (OPENCL_VERSION_MAJOR LESS 2)
+    message( WARNING "This package require OpenCL 2.0 or more. Found version ${OPENCL_VERSION_STRING}")
+    set(OPENCL_FOUND 0)
+  endif()
+endif()
+
 if (CUDA_FOUND)
   if (APPLE)
     FIND_LIBRARY(CUDADRV_LIBRARY CUDA)
