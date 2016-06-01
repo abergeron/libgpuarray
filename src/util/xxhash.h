@@ -1,6 +1,8 @@
 #ifndef XXHASH_H
 #define XXHASH_H
 
+/** \cond INTERNAL_DOCS */
+
 /*
    xxHash - Extremely Fast Hash algorithm
    Header File
@@ -157,5 +159,7 @@ When you are done, don't forget to free XXH state space, using typically XXHnn_f
 #if defined (__cplusplus)
 }
 #endif
+
+/** \endcond */
 
 #endif

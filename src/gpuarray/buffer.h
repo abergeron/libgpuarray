@@ -370,6 +370,15 @@ GPUARRAY_PUBLIC int gpudata_sync(gpudata *b);
  */
 GPUARRAY_PUBLIC int gpudata_property(gpudata *buf, int prop_id, void *res);
 
+/**
+ * Return the context associated with a buffer.
+ *
+ * This function cannot fail, as long as the buffer pointer is valid.
+ *
+ * \param b buffer
+ *
+ * \returns The context.
+ */
 GPUARRAY_PUBLIC gpucontext *gpudata_context(gpudata *b);
 
 /**
@@ -386,6 +395,8 @@ GPUARRAY_PUBLIC gpucontext *gpudata_context(gpudata *b);
  * \param strings table of string pointers
  * \param lengths (optional) length for each string in the table
  * \param fname name of the kernel function (as defined in the code)
+ * \param numargs number of arguments to the kernel.
+ * \param typecodes the type for each argument (using GA_BUFFER for arrays)
  * \param flags flags for compilation (see #ga_usefl)
  * \param ret error return pointer
  * \param err_str returns pointer to debug message from GPU backend
@@ -446,7 +457,7 @@ GPUARRAY_PUBLIC int gpukernel_setarg(gpukernel *k, unsigned int i, void *a);
  *
  * \param k kernel
  * \param n number of dimensions of grid/block
- * \param bs block sizes for this call (also known as local size)
+ * \param ls block sizes for this call (also known as local size)
  * \param gs grid sizes for this call (also known as global size)
  * \param shared amount of dynamic shared memory to reserve
  * \param args table of pointers to each argument (optional).
@@ -491,7 +502,17 @@ GPUARRAY_PUBLIC int gpukernel_binary(gpukernel *k, size_t *sz, void **obj);
  */
 GPUARRAY_PUBLIC int gpukernel_property(gpukernel *k, int prop_id, void *res);
 
+/**
+ * Return the context associated with a kernel.
+ *
+ * This function cannot fail, as long as the kernel pointer is valid.
+ *
+ * \param k kernel
+ *
+ * \returns The context.
+ */
 GPUARRAY_PUBLIC gpucontext *gpukernel_context(gpukernel *k);
+
 /**
  * \defgroup props Properties
  * @{

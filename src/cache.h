@@ -1,6 +1,8 @@
 #ifndef CACHE_H
 #define CACHE_H
 
+/** \cond INTERNAL_DOCS */
+
 #include <stdint.h>
 #include <stdlib.h>
 #include "private_config.h"
@@ -95,5 +97,7 @@ static inline void cache_destroy(cache *c) {
   c->destroy(c);
   free(c);
 }
+
+/** \endcond */
 
 #endif

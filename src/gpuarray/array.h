@@ -266,6 +266,22 @@ GPUARRAY_PUBLIC int GpuArray_fromdata(GpuArray *a,
                                       const size_t *dims,
                                       const ssize_t *strides, int writeable);
 
+/**
+ * Allocate a new GpuArray object and initialize its content from a
+ * host buffer.
+ *
+ * \param a The array to initialize.
+ * \param ctx The context in which to initialized the array.
+ * \param buf Host pointer to the initial data.
+ * \param typecode Data type for the new array.
+ * \param nd number of dimensions of the data (should match what is in `buf`)
+ * \param dims shape of the data (should match what is in `buf`)
+ * \param strides strides of the data (should match what is in `buf`)
+ *
+ * \returns A return of GA_NO_ERROR means that the structure is
+ * properly initialized. Any other error code means that the structure
+ * is left uninitialized.
+ */
 GPUARRAY_PUBLIC int GpuArray_copy_from_host(GpuArray *a,
                                             gpucontext *ctx, void *buf, int typecode,
                                             unsigned int nd, const size_t *dims,
@@ -529,7 +545,7 @@ GPUARRAY_PUBLIC int GpuArray_copy(GpuArray *res, const GpuArray *a,
  * Source and target arrays must be contiguous.  This restriction may
  * be lifted in the future.
  *
- * \param r result array
+ * \param res result array
  * \param a array to transfer
  *
  * \return GA_NO_ERROR if the operation was succesful.

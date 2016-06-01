@@ -1,6 +1,8 @@
 #ifndef STRB_H
 #define STRB_H
 
+/** \cond INTERNAL_DOCS */
+
 #include "private_config.h"
 
 #ifdef __cplusplus
@@ -202,5 +204,7 @@ static inline void strb_dump(strb *sb, FILE *fd) {
 #ifdef __cplusplus
 }
 #endif
+
+/** \endcond */
 
 #endif

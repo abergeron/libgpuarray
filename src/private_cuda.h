@@ -1,6 +1,8 @@
 #ifndef _PRIVATE_CUDA_H
 #define _PRIVATE_CUDA_H
 
+/** \cond INTERNAL_DOCS */
+
 #ifdef __APPLE__
 #include <CUDA/cuda.h>
 #else
@@ -127,5 +129,7 @@ struct _gpukernel {
   char tag[8];
 #endif
 };
+
+/** \endcond */
 
 #endif

@@ -1,6 +1,8 @@
 #ifndef _GPUARRAY_PRIVATE_OPENCL
 #define _GPUARRAY_PRIVATE_OPENCL
 
+/** \cond INTERNAL_DOCS */
+
 #include "private.h"
 
 #ifdef __APPLE__
@@ -74,5 +76,7 @@ GPUARRAY_LOCAL cl_ctx *cl_make_ctx(cl_context ctx);
 GPUARRAY_LOCAL cl_command_queue cl_get_stream(gpucontext *ctx);
 GPUARRAY_LOCAL gpudata *cl_make_buf(gpucontext *c, cl_mem buf);
 GPUARRAY_LOCAL cl_mem cl_get_buf(gpudata *g);
+
+/** \endcond */
 
 #endif
