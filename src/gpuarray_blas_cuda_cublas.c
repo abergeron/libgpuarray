@@ -4,6 +4,7 @@
 #include "gpuarray/buffer_blas.h"
 #include "gpuarray/kernel.h"
 #include "gpuarray/error.h"
+#include "gpuarray/util.h"
 
 #include "cublas_v2.h"
 
@@ -442,8 +443,8 @@ static int hgemm(cb_order order, cb_transpose transA, cb_transpose transB,
   size_t t;
   cb_transpose transT;
 #ifdef HAVE_CUBLAS_HGEMM
-  half alpha;
-  half beta;
+  ga_half_t alpha;
+  ga_half_t beta;
 #endif
 
   ASSERT_BUF(A);
@@ -476,13 +477,13 @@ static int hgemm(cb_order order, cb_transpose transA, cb_transpose transB,
   cuda_wait(C, CUDA_WAIT_READ|CUDA_WAIT_WRITE);
 
 #ifdef HAVE_CUBLAS_HGEMM
-  alpha = __float2half(_alpha);
-  beta = __float2half(_beta);
+  alpha = ga_float2half(_alpha);
+  beta = ga_float2half(_beta);
 
   h->err = cublasHgemm(h->h, convT(transA), convT(transB), M, N, K,
-		       &alpha, ((half *)A->ptr) + offA, lda,
+		       (half *)&alpha, ((half *)A->ptr) + offA, lda,
 		       ((half *)B->ptr) + offB, ldb,
-		       &beta, ((half *)C->ptr) + offC, ldc);
+		       (half *)&beta, ((half *)C->ptr) + offC, ldc);
 #else
   /* This computes in float32 but it the best we can do if cublasHgemm
      is not available */
