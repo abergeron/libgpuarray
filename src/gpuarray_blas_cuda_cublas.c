@@ -432,19 +432,19 @@ static int dgemm(cb_order order, cb_transpose transA, cb_transpose transB,
 }
 
 static int hgemm(cb_order order, cb_transpose transA, cb_transpose transB,
-                 size_t M, size_t N, size_t K, float alpha,
+                 size_t M, size_t N, size_t K, float _alpha,
                  gpudata *A, size_t offA, size_t lda,
                  gpudata *B, size_t offB, size_t ldb,
-                 float beta, gpudata *C, size_t offC, size_t ldc) {
-#ifdef HAVE_CUBLAS_SGEMMEX
-  /* This will use float32 for computation as it's the best we can
-   * have right now. In the future when native float16 support will be
-   * there we will switch to that. */
+                 float _beta, gpudata *C, size_t offC, size_t ldc) {
   cuda_context *ctx = A->ctx;
   blas_handle *h = (blas_handle *)ctx->blas_handle;
   gpudata *T;
   size_t t;
   cb_transpose transT;
+#ifdef HAVE_CUBLAS_HGEMM
+  half alpha;
+  half beta;
+#endif
 
   ASSERT_BUF(A);
   ASSERT_BUF(B);
@@ -475,27 +475,23 @@ static int hgemm(cb_order order, cb_transpose transA, cb_transpose transB,
   cuda_wait(B, CUDA_WAIT_READ);
   cuda_wait(C, CUDA_WAIT_READ|CUDA_WAIT_WRITE);
 
-  h->err = cublasSgemmEx(h->h,
-                         convT(transA), convT(transB), M, N, K,
-                         &alpha, ((uint16_t *)A->ptr) + offA,
-#if CUDA_VERSION >= 8000
-                         CUDA_R_16F,
+#ifdef HAVE_CUBLAS_HGEMM
+  alpha = __float2half(_alpha);
+  beta = __float2half(_beta);
+
+  h->err = cublasHgemm(h->h, convT(transA), convT(transB), M, N, K,
+		       &alpha, ((half *)A->ptr) + offA, lda,
+		       ((half *)B->ptr) + offB, ldb,
+		       &beta, ((half *)C->ptr) + offC, ldc);
 #else
-                         CUBLAS_DATA_HALF,
+  /* This computes in float32 but it the best we can do if cublasHgemm
+     is not available */
+  h->err = cublasSgemmEx(h->h, convT(transA), convT(transB), M, N, K,
+			 &alpha, ((uint16_t *)A->ptr) + offA, CUBLAS_DATA_HALF,
+			 lda, ((uint16_t *)B->ptr) + offB, CUBLAS_DATA_HALF,
+			 ldb, &beta, ((uint16_t *)C->ptr) + offC,
+			 CUBLAS_DATA_HALF, ldc);
 #endif
-                         lda, ((uint16_t *)B->ptr) + offB,
-#if CUDA_VERSION >= 8000
-                         CUDA_R_16F,
-#else
-                         CUBLAS_DATA_HALF,
-#endif
-                         ldb, &beta, ((uint16_t *)C->ptr) + offC,
-#if CUDA_VERSION >= 8000
-                         CUDA_R_16F,
-#else
-                         CUBLAS_DATA_HALF,
-#endif
-                         ldc);
   if (h->err != CUBLAS_STATUS_SUCCESS) {
     cuda_exit(ctx);
     if (h->err == CUBLAS_STATUS_ARCH_MISMATCH)
@@ -509,9 +505,6 @@ static int hgemm(cb_order order, cb_transpose transA, cb_transpose transB,
 
   cuda_exit(ctx);
   return GA_NO_ERROR;
-#else
-  return GA_DEVSUP_ERROR;
-#endif
 }
 
 static int hgemmBatch(cb_order order, cb_transpose transA, cb_transpose transB,

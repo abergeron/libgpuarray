@@ -116,9 +116,9 @@ if (CUDA_FOUND)
 
   set(CMAKE_REQUIRED_LIBRARIES ${CUDA_CUBLAS_LIBRARIES})
 
-  check_function_exists(cublasSgemmEx CUBLAS_SGEMMEX)
-  if (CUBLAS_SGEMMEX)
-    add_definitions(-DHAVE_CUBLAS_SGEMMEX)
+  check_function_exists(cublasHgemm CUBLAS_HGEMM)
+  if (CUBLAS_HGEMM)
+    add_definitions(-DHAVE_CUBLAS_HGEMM)
   endif()
 
   if(NCCL_FOUND)
