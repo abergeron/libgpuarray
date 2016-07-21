@@ -76,6 +76,7 @@ static const char *code_sgemvBH_T_a1_b1_small =                         \
   "  atomicAdd(&y[p][i*incy], yi);"                                     \
   "}\n";
 
+#if CUDA_VERSION < 8000
 static const char *atomicadd_double =                                   \
   "__device__ double atomicAdd(double* address, double val) {"          \
   "  unsigned long long int* address_as_ull ="                          \
@@ -89,6 +90,7 @@ static const char *atomicadd_double =                                   \
   "  } while (assumed != old);"                                         \
   "  return __longlong_as_double(old);"                                 \
   "}\n";
+#endif
 
 static const char *code_dgemvBH_N_a1_b1_small =                         \
   "extern \"C\" __global__ void dgemv(const double *A[], size_t lda, "  \
@@ -167,6 +169,7 @@ static int setup(gpucontext *c) {
   blas_handle *handle;
   const char *tmp[2];
   cublasStatus_t err;
+  unsigned int p;
   int e;
   int types[10];
 
@@ -209,13 +212,19 @@ static int setup(gpucontext *c) {
   if (e != GA_NO_ERROR) goto e1;
   e = GpuKernel_init(&handle->sgemvBH_T_a1_b1_small, c, 1, &code_sgemvBH_T_a1_b1_small, NULL, "sgemv", 9, types, 0, NULL);
   if (e != GA_NO_ERROR) goto e2;
-  tmp[0] = atomicadd_double;
-  tmp[1] = code_dgemvBH_N_a1_b1_small;
-  e = GpuKernel_init(&handle->dgemvBH_N_a1_b1_small, c, 2, tmp, NULL, "dgemv", 9, types, GA_USE_DOUBLE, NULL);
+  p = 0;
+#if CUDA_VERSION < 8000
+  tmp[p++] = atomicadd_double;
+#endif
+  tmp[p++] = code_dgemvBH_N_a1_b1_small;
+  e = GpuKernel_init(&handle->dgemvBH_N_a1_b1_small, c, p, tmp, NULL, "dgemv", 9, types, GA_USE_DOUBLE, NULL);
   if (e != GA_NO_ERROR) goto e3;
-  tmp[0] = atomicadd_double;
-  tmp[1] = code_dgemvBH_T_a1_b1_small;
-  e = GpuKernel_init(&handle->dgemvBH_T_a1_b1_small, c, 2, tmp, NULL, "dgemv", 9, types, GA_USE_DOUBLE, NULL);
+  p = 0;
+#if CUDA_VERSION < 8000
+  tmp[p++] = atomicadd_double;
+#endif
+  tmp[p++] = code_dgemvBH_T_a1_b1_small;
+  e = GpuKernel_init(&handle->dgemvBH_T_a1_b1_small, c, p, tmp, NULL, "dgemv", 9, types, GA_USE_DOUBLE, NULL);
   if (e != GA_NO_ERROR) goto e4;
 
   types[0] = GA_BUFFER;
@@ -231,9 +240,12 @@ static int setup(gpucontext *c) {
   e = GpuKernel_init(&handle->sgerBH_gen_small, c, 1, &code_sgerBH_gen_small, NULL, "_sgerBH_gen_small", 10, types, 0, NULL);
   if (e != GA_NO_ERROR) goto e5;
   types[4] = GA_DOUBLE;
-  tmp[0] = atomicadd_double;
-  tmp[1] = code_dgerBH_gen_small;
-  e = GpuKernel_init(&handle->dgerBH_gen_small, c, 2, tmp, NULL, "_dgerBH_gen_small", 10, types, GA_USE_DOUBLE, NULL);
+  p = 0;
+#if CUDA_VERSION < 8000
+  tmp[p++] = atomicadd_double;
+#endif
+  tmp[p++] = code_dgerBH_gen_small;
+  e = GpuKernel_init(&handle->dgerBH_gen_small, c, p, tmp, NULL, "_dgerBH_gen_small", 10, types, GA_USE_DOUBLE, NULL);
   if (e != GA_NO_ERROR) goto e6;
 
   ctx->blas_handle = handle;
