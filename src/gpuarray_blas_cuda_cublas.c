@@ -7,6 +7,12 @@
 
 #include "cublas_v2.h"
 
+#if CUDA_VERSION >= 8000
+#define HALF_TYPE CUDA_R_16F
+#else
+#define HALF_TYPE CUBLAS_DATA_HALF
+#endif
+
 extern const gpuarray_buffer_ops cuda_ops;
 
 static inline cublasOperation_t convT(cb_transpose trans) {
@@ -478,24 +484,9 @@ static int hgemm(cb_order order, cb_transpose transA, cb_transpose transB,
 
   h->err = cublasSgemmEx(h->h,
                          convT(transA), convT(transB), M, N, K,
-                         &alpha, ((uint16_t *)A->ptr) + offA,
-#if CUDA_VERSION >= 8000
-                         CUDA_R_16F,
-#else
-                         CUBLAS_DATA_HALF,
-#endif
-                         lda, ((uint16_t *)B->ptr) + offB,
-#if CUDA_VERSION >= 8000
-                         CUDA_R_16F,
-#else
-                         CUBLAS_DATA_HALF,
-#endif
-                         ldb, &beta, ((uint16_t *)C->ptr) + offC,
-#if CUDA_VERSION >= 8000
-                         CUDA_R_16F,
-#else
-                         CUBLAS_DATA_HALF,
-#endif
+                         &alpha, ((uint16_t *)A->ptr) + offA, HALF_TYPE,
+                         lda, ((uint16_t *)B->ptr) + offB, HALF_TYPE,
+                         ldb, &beta, ((uint16_t *)C->ptr) + offC, HALF_TYPE,
                          ldc);
   if (h->err != CUBLAS_STATUS_SUCCESS) {
     cuda_exit(ctx);
