@@ -266,7 +266,8 @@ static void teardown(gpucontext *c) {
     return;
 
   cuda_enter(ctx);
-  cublasDestroy(handle->h);
+  /* This should actually run but it segfaults often for seemingly no reason */
+  /* cublasDestroy(handle->h); */
   GpuKernel_clear(&handle->sgemvBH_N_a1_b1_small);
   GpuKernel_clear(&handle->sgemvBH_T_a1_b1_small);
   GpuKernel_clear(&handle->dgemvBH_N_a1_b1_small);
