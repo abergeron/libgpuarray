@@ -153,4 +153,6 @@ struct _gpukernel {
 #endif
 };
 
+#define CUDA_KERNEL_IN_CACHE 0x80000000u
+
 #endif

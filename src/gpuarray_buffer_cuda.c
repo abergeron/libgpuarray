@@ -31,6 +31,7 @@ static int init_done = 0;
 
 GPUARRAY_LOCAL const gpuarray_buffer_ops cuda_ops;
 
+static void real_freekernel(gpukernel *);
 static void cuda_freekernel(gpukernel *);
 static int cuda_property(gpucontext *, gpudata *, gpukernel *, int, void *);
 static int cuda_waits(gpudata *, int, CUstream);
@@ -49,6 +50,12 @@ static int strb_eq(void *_k1, void *_k2) {
 static uint32_t strb_hash(void *_k) {
   strb *k = (strb *)_k;
   return XXH32(k->s, k->l, 42);
+}
+
+static void cache_freekernel(gpukernel *k) {
+  k->refcnt -= CUDA_KERNEL_IN_CACHE;
+  if (k->refcnt == 0)
+    real_freekernel(k);
 }
 
 static int cuda_get_platform_count(unsigned int* platcount) {
@@ -108,7 +115,7 @@ cuda_context *cuda_make_ctx(CUcontext ctx, int flags) {
   }
   res->kernel_cache = cache_twoq(64, 128, 64, 8, strb_eq, strb_hash,
                                  (cache_freek_fn)strb_free,
-                                 (cache_freev_fn)cuda_freekernel);
+                                 (cache_freev_fn)cache_freekernel);
   if (res->kernel_cache == NULL)
     goto fail_cache;
   err = cuMemAllocHost(&p, 16);
@@ -1063,21 +1070,17 @@ static void *call_compiler(const char *src, size_t len, const char *arch_arg,
 
 #endif /* WITH_NVRTC */
 
-static void _cuda_freekernel(gpukernel *k) {
-  k->refcnt--;
-  if (k->refcnt == 0) {
-    if (k->ctx != NULL) {
-      cuda_enter(k->ctx);
-      cuModuleUnload(k->m);
-      cuda_exit(k->ctx);
-      cuda_free_ctx(k->ctx);
-    }
-    CLEAR(k);
-    free(k->args);
-    free(k->bin);
-    free(k->types);
-    free(k);
+static void real_freekernel(gpukernel *k) {
+  if (k->ctx != NULL) {
+    cuda_enter(k->ctx);
+    cuModuleUnload(k->m);
+    cuda_exit(k->ctx);
   }
+  CLEAR(k);
+  free(k->args);
+  free(k->bin);
+  free(k->types);
+  free(k);
 }
 
 static gpukernel *cuda_newkernel(gpucontext *c, unsigned int count,
@@ -1172,6 +1175,7 @@ static gpukernel *cuda_newkernel(gpucontext *c, unsigned int count,
       res = (gpukernel *)cache_get(ctx->kernel_cache, &sb);
       if (res != NULL) {
         res->refcnt++;
+        res->ctx->refcnt++;
         strb_clear(&sb);
         return res;
       }
@@ -1218,7 +1222,7 @@ static gpukernel *cuda_newkernel(gpucontext *c, unsigned int count,
     res->argcount = argcount;
     res->types = calloc(argcount, sizeof(int));
     if (res->types == NULL) {
-      _cuda_freekernel(res);
+      real_freekernel(res);
       strb_clear(&sb);
       cuda_exit(ctx);
       FAIL(NULL, GA_MEMORY_ERROR);
@@ -1226,7 +1230,7 @@ static gpukernel *cuda_newkernel(gpucontext *c, unsigned int count,
     memcpy(res->types, types, argcount*sizeof(int));
     res->args = calloc(argcount, sizeof(void *));
     if (res->args == NULL) {
-      _cuda_freekernel(res);
+      real_freekernel(res);
       strb_clear(&sb);
       cuda_exit(ctx);
       FAIL(NULL, GA_MEMORY_ERROR);
@@ -1235,21 +1239,23 @@ static gpukernel *cuda_newkernel(gpucontext *c, unsigned int count,
     ctx->err = cuModuleLoadData(&res->m, bin);
 
     if (ctx->err != CUDA_SUCCESS) {
-      _cuda_freekernel(res);
-      strb_clear(&sb);
-      cuda_exit(ctx);
-      FAIL(NULL, GA_IMPL_ERROR);
-    }
-
-    ctx->err = cuModuleGetFunction(&res->k, res->m, fname);
-    if (ctx->err != CUDA_SUCCESS) {
-      _cuda_freekernel(res);
+      real_freekernel(res);
       strb_clear(&sb);
       cuda_exit(ctx);
       FAIL(NULL, GA_IMPL_ERROR);
     }
 
     res->ctx = ctx;
+    /* Don't increase the refcount yet. */
+
+    ctx->err = cuModuleGetFunction(&res->k, res->m, fname);
+    if (ctx->err != CUDA_SUCCESS) {
+      real_freekernel(res);
+      strb_clear(&sb);
+      cuda_exit(ctx);
+      FAIL(NULL, GA_IMPL_ERROR);
+    }
+
     ctx->refcnt++;
     cuda_exit(ctx);
     TAG_KER(res);
@@ -1259,9 +1265,8 @@ static gpukernel *cuda_newkernel(gpucontext *c, unsigned int count,
       strb_clear(&sb);
       FAIL(NULL, GA_MEMORY_ERROR);
     }
-    /* One of the refs is for the cache */
-    res->refcnt++;
-    /* If this fails, it will free the key and remove a ref from the kernel. */
+    res->refcnt += CUDA_KERNEL_IN_CACHE;
+    /* If this fails, it will free the key and remove the cache ref */
     cache_add(ctx->kernel_cache, psb, res);
     return res;
 }
@@ -1273,7 +1278,11 @@ static void cuda_retainkernel(gpukernel *k) {
 
 static void cuda_freekernel(gpukernel *k) {
   ASSERT_KER(k);
-  _cuda_freekernel(k);
+  k->refcnt--;
+  if (k->refcnt == CUDA_KERNEL_IN_CACHE)
+    cuda_free_ctx(k->ctx);
+  if (k->refcnt == 0)
+    real_freekernel(k);
 }
 
 static int cuda_kernelsetarg(gpukernel *k, unsigned int i, void *arg) {
