@@ -209,6 +209,18 @@ set(headers
   gpuarray/util.h
 )
 
+find_program(CLANG_FORMAT "clang-format")
+if(CLANG_FORMAT)
+  add_custom_target(
+    clang-format
+    COMMAND pwd && ${CLANG_FORMAT}
+    -i
+    -style=file
+    ${GPUARRAY_SRC} ${headers}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+  )
+endif()
+
 install(FILES ${headers} DESTINATION include/gpuarray)
 
 if(NOT UNIX)

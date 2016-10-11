@@ -44,6 +44,9 @@ else
 	(cd Release && NUM_DEVS=${NUM_DEVS} DEV_NAMES=${DEV_NAMES} cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$(INSTALL_PREFIX))
 endif
 
+format: Release/Makefile
+	(cd Release && make clang-format)
+
 relc: Release/Makefile
 	(cd Release && make)
 

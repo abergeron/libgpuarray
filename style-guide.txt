@@ -1,0 +1,4 @@
+For C source files we expect that they go through clang-format with the
+configuration defined in .clang-format
+
+For python source files we respect pep8 as much as possible.
