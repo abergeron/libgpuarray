@@ -7,10 +7,10 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif  // __cplusplus
+#endif // __cplusplus
 #ifdef CONFUSE_EMACS
 }
-#endif  // CONFUSE_EMACS
+#endif // CONFUSE_EMACS
 
 /*******************************************************************************
 *                       Multi-gpu collectives interface                       *
@@ -27,8 +27,8 @@ extern "C" {
  * \note Must be called separately for each rank in `comm`, except root rank.
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int GpuArray_reduce_from(const GpuArray* src, int opcode,
-                                         int root, gpucomm* comm);
+GPUARRAY_PUBLIC int GpuArray_reduce_from(const GpuArray *src, int opcode,
+                                         int root, gpucomm *comm);
 
 /**
  * \brief Reduce collective operation for ranks in a communicator world.
@@ -44,8 +44,8 @@ GPUARRAY_PUBLIC int GpuArray_reduce_from(const GpuArray* src, int opcode,
  * GpuArray_reduce_from instead).
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int GpuArray_reduce(const GpuArray* src, GpuArray* dest,
-                                    int opcode, int root, gpucomm* comm);
+GPUARRAY_PUBLIC int GpuArray_reduce(const GpuArray *src, GpuArray *dest,
+                                    int opcode, int root, gpucomm *comm);
 
 /**
  * \brief AllReduce collective operation for ranks in a communicator world.
@@ -61,8 +61,8 @@ GPUARRAY_PUBLIC int GpuArray_reduce(const GpuArray* src, GpuArray* dest,
  * \note Must be called separately for each rank in `comm`.
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int GpuArray_all_reduce(const GpuArray* src, GpuArray* dest,
-                                        int opcode, gpucomm* comm);
+GPUARRAY_PUBLIC int GpuArray_all_reduce(const GpuArray *src, GpuArray *dest,
+                                        int opcode, gpucomm *comm);
 
 /**
  * \brief ReduceScatter collective operation for ranks in a communicator world.
@@ -78,8 +78,8 @@ GPUARRAY_PUBLIC int GpuArray_all_reduce(const GpuArray* src, GpuArray* dest,
  * \note Must be called separately for each rank in `comm`.
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int GpuArray_reduce_scatter(const GpuArray* src, GpuArray* dest,
-                                            int opcode, gpucomm* comm);
+GPUARRAY_PUBLIC int GpuArray_reduce_scatter(const GpuArray *src, GpuArray *dest,
+                                            int opcode, gpucomm *comm);
 
 /**
  * \brief Broadcast collective operation for ranks in a communicator world.
@@ -93,8 +93,8 @@ GPUARRAY_PUBLIC int GpuArray_reduce_scatter(const GpuArray* src, GpuArray* dest,
  * \note Must be called separately for each rank in `comm`.
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int GpuArray_broadcast(GpuArray* array, int root,
-                                       gpucomm* comm);
+GPUARRAY_PUBLIC int GpuArray_broadcast(GpuArray *array, int root,
+                                       gpucomm *comm);
 
 /**
  * \brief AllGather collective operation for ranks in a communicator world.
@@ -110,11 +110,11 @@ GPUARRAY_PUBLIC int GpuArray_broadcast(GpuArray* array, int root,
  * \note Must be called separately for each rank in `comm`.
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int GpuArray_all_gather(const GpuArray* src, GpuArray* dest,
-                                        gpucomm* comm);
+GPUARRAY_PUBLIC int GpuArray_all_gather(const GpuArray *src, GpuArray *dest,
+                                        gpucomm *comm);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // GPUARRAY_COLLECTIVES_H
+#endif // GPUARRAY_COLLECTIVES_H

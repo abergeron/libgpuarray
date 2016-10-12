@@ -6,10 +6,10 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif  // __cplusplus
+#endif // __cplusplus
 #ifdef CONFUSE_EMACS
 }
-#endif  // CONFUSE_EMACS
+#endif // CONFUSE_EMACS
 
 /*******************************************************************************
 *                   Multi-gpu collectives buffer interface                    *
@@ -28,13 +28,13 @@ typedef struct _gpucomm gpucomm;
  * Enum for reduce ops of gpucomm
  */
 enum _gpucomm_reduce_ops {
-  GA_SUM = 0,   //!< to sum (elemwise) arrays across ranks
-  GA_PROD = 1,  //!< to multiply (elemwise) arrays across ranks
-  GA_MAX = 2,   //!< to find max (elemwise) of arrays across ranks
-  GA_MIN = 3,   //!< to find min (elemwise) of arrays across ranks
+  GA_SUM = 0,  //!< to sum (elemwise) arrays across ranks
+  GA_PROD = 1, //!< to multiply (elemwise) arrays across ranks
+  GA_MAX = 2,  //!< to find max (elemwise) of arrays across ranks
+  GA_MIN = 3,  //!< to find min (elemwise) of arrays across ranks
 };
 
-#define GA_COMM_ID_BYTES 128  //!< sizeof(gpucommCliqueId)
+#define GA_COMM_ID_BYTES 128 //!< sizeof(gpucommCliqueId)
 
 /**
  * Dummy struct to define byte-array's length through a type
@@ -62,7 +62,7 @@ typedef struct _gpucommCliqueId {
  * new world (failing will lead to deadlock).
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int gpucomm_new(gpucomm** comm, gpucontext* ctx,
+GPUARRAY_PUBLIC int gpucomm_new(gpucomm **comm, gpucontext *ctx,
                                 gpucommCliqueId comm_id, int ndev, int rank);
 
 /**
@@ -70,21 +70,21 @@ GPUARRAY_PUBLIC int gpucomm_new(gpucomm** comm, gpucontext* ctx,
  * \param comm [gpucomm*] gpu communicator to be destroyed
  * \return void
  */
-GPUARRAY_PUBLIC void gpucomm_free(gpucomm* comm);
+GPUARRAY_PUBLIC void gpucomm_free(gpucomm *comm);
 
 /**
  * \brief Returns nice error message concerning \ref GA_COMM_ERROR.
  * \param ctx [gpucontext*] gpu context in which communicator was used
  * \return const char* useful backend error message
  */
-GPUARRAY_PUBLIC const char* gpucomm_error(gpucontext* ctx);
+GPUARRAY_PUBLIC const char *gpucomm_error(gpucontext *ctx);
 
 /**
  * \brief Returns gpu context in which `comm` is used.
  * \param comm [gpucomm*] gpu communicator
  * \return gpucontext* gpu context
  */
-GPUARRAY_PUBLIC gpucontext* gpucomm_context(gpucomm* comm);
+GPUARRAY_PUBLIC gpucontext *gpucomm_context(gpucomm *comm);
 
 /**
  * \brief Creates a unique `comm_id` to be shared in a world of communicators.
@@ -93,8 +93,8 @@ GPUARRAY_PUBLIC gpucontext* gpucomm_context(gpucomm* comm);
  * \note Id is guaranteed to be unique across callers in a single host.
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int gpucomm_gen_clique_id(gpucontext* ctx,
-                                          gpucommCliqueId* comm_id);
+GPUARRAY_PUBLIC int gpucomm_gen_clique_id(gpucontext *ctx,
+                                          gpucommCliqueId *comm_id);
 
 /**
  * \brief Returns total number of device/communicators participating in `comm`'s
@@ -103,7 +103,7 @@ GPUARRAY_PUBLIC int gpucomm_gen_clique_id(gpucontext* ctx,
  * \param gpucount [int*] pointer to number of gpus in `comm`'s world
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int gpucomm_get_count(gpucomm* comm, int* gpucount);
+GPUARRAY_PUBLIC int gpucomm_get_count(gpucomm *comm, int *gpucount);
 
 /**
  * \brief Returns rank of `comm` inside its world as defined by user upon
@@ -112,7 +112,7 @@ GPUARRAY_PUBLIC int gpucomm_get_count(gpucomm* comm, int* gpucount);
  * \param rank [int*] pointer to `comm`'s rank
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int gpucomm_get_rank(gpucomm* comm, int* rank);
+GPUARRAY_PUBLIC int gpucomm_get_rank(gpucomm *comm, int *rank);
 
 /**
  * \brief Reduce collective operation for ranks in a communicator world [buffer
@@ -136,9 +136,9 @@ GPUARRAY_PUBLIC int gpucomm_get_rank(gpucomm* comm, int* rank);
  * \note Must be called separately for each rank in `comm`.
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int gpucomm_reduce(gpudata* src, size_t offsrc, gpudata* dest,
+GPUARRAY_PUBLIC int gpucomm_reduce(gpudata *src, size_t offsrc, gpudata *dest,
                                    size_t offdest, size_t count, int typecode,
-                                   int opcode, int root, gpucomm* comm);
+                                   int opcode, int root, gpucomm *comm);
 
 /**
  * \brief AllReduce collective operation for ranks in a communicator world
@@ -164,10 +164,10 @@ GPUARRAY_PUBLIC int gpucomm_reduce(gpudata* src, size_t offsrc, gpudata* dest,
  * \note Must be called separately for each rank in `comm`.
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int gpucomm_all_reduce(gpudata* src, size_t offsrc,
-                                       gpudata* dest, size_t offdest,
+GPUARRAY_PUBLIC int gpucomm_all_reduce(gpudata *src, size_t offsrc,
+                                       gpudata *dest, size_t offdest,
                                        size_t count, int typecode, int opcode,
-                                       gpucomm* comm);
+                                       gpucomm *comm);
 
 /**
  * \brief ReduceScatter collective operation for ranks in a communicator world
@@ -193,10 +193,10 @@ GPUARRAY_PUBLIC int gpucomm_all_reduce(gpudata* src, size_t offsrc,
  * \note Must be called separately for each rank in `comm`.
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int gpucomm_reduce_scatter(gpudata* src, size_t offsrc,
-                                           gpudata* dest, size_t offdest,
+GPUARRAY_PUBLIC int gpucomm_reduce_scatter(gpudata *src, size_t offsrc,
+                                           gpudata *dest, size_t offdest,
                                            size_t count, int typecode,
-                                           int opcode, gpucomm* comm);
+                                           int opcode, gpucomm *comm);
 
 /**
  * \brief Broadcast collective operation for ranks in a communicator world
@@ -215,9 +215,9 @@ GPUARRAY_PUBLIC int gpucomm_reduce_scatter(gpudata* src, size_t offsrc,
  * \note Must be called separately for each rank in `comm`.
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int gpucomm_broadcast(gpudata* array, size_t offset,
+GPUARRAY_PUBLIC int gpucomm_broadcast(gpudata *array, size_t offset,
                                       size_t count, int typecode, int root,
-                                      gpucomm* comm);
+                                      gpucomm *comm);
 
 /**
  * \brief AllGather collective operation for ranks in a communicator world.
@@ -238,13 +238,13 @@ GPUARRAY_PUBLIC int gpucomm_broadcast(gpudata* array, size_t offset,
  * \note Must be called separately for each rank in `comm`.
  * \return int error code, \ref GA_NO_ERROR if success
  */
-GPUARRAY_PUBLIC int gpucomm_all_gather(gpudata* src, size_t offsrc,
-                                       gpudata* dest, size_t offdest,
+GPUARRAY_PUBLIC int gpucomm_all_gather(gpudata *src, size_t offsrc,
+                                       gpudata *dest, size_t offdest,
                                        size_t count, int typecode,
-                                       gpucomm* comm);
+                                       gpucomm *comm);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // GPUARRAY_BUFFER_COLLECTIVES_H
+#endif // GPUARRAY_BUFFER_COLLECTIVES_H

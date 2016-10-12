@@ -1,12 +1,12 @@
 #include <stdlib.h>
 #include "gpuarray/blas.h"
 #include "gpuarray/buffer_blas.h"
+#include "gpuarray/error.h"
 #include "gpuarray/types.h"
 #include "gpuarray/util.h"
-#include "gpuarray/error.h"
 
-int GpuArray_rgemv(cb_transpose transA, double alpha, GpuArray *A,
-                   GpuArray *X, double beta, GpuArray *Y, int nocopy) {
+int GpuArray_rgemv(cb_transpose transA, double alpha, GpuArray *A, GpuArray *X,
+                   double beta, GpuArray *Y, int nocopy) {
   GpuArray *Ap = A;
   GpuArray copyA;
   GpuArray *Xp = X;
@@ -18,14 +18,12 @@ int GpuArray_rgemv(cb_transpose transA, double alpha, GpuArray *A,
   cb_order o;
   int err;
 
-  if (A->typecode != GA_HALF &&
-      A->typecode != GA_FLOAT &&
+  if (A->typecode != GA_HALF && A->typecode != GA_FLOAT &&
       A->typecode != GA_DOUBLE)
     return GA_INVALID_ERROR;
 
-  if (A->nd != 2 || X->nd != 1 || Y->nd != 1 ||
-      A->typecode != A->typecode || X->typecode != A->typecode ||
-      Y->typecode != A->typecode)
+  if (A->nd != 2 || X->nd != 1 || Y->nd != 1 || A->typecode != A->typecode ||
+      X->typecode != A->typecode || Y->typecode != A->typecode)
     return GA_VALUE_ERROR;
 
   if (!(A->flags & GA_ALIGNED) || !(X->flags & GA_ALIGNED) ||
@@ -40,8 +38,7 @@ int GpuArray_rgemv(cb_transpose transA, double alpha, GpuArray *A,
     n = A->dimensions[0];
   }
 
-  if (Y->dimensions[0] != m || X->dimensions[0] != n)
-    return GA_VALUE_ERROR;
+  if (Y->dimensions[0] != m || X->dimensions[0] != n) return GA_VALUE_ERROR;
 
   m = A->dimensions[0];
   n = A->dimensions[1];
@@ -53,8 +50,7 @@ int GpuArray_rgemv(cb_transpose transA, double alpha, GpuArray *A,
       return GA_COPY_ERROR;
     else {
       err = GpuArray_copy(&copyA, A, GA_F_ORDER);
-      if (err != GA_NO_ERROR)
-	goto cleanup;
+      if (err != GA_NO_ERROR) goto cleanup;
       Ap = &copyA;
     }
   }
@@ -63,8 +59,7 @@ int GpuArray_rgemv(cb_transpose transA, double alpha, GpuArray *A,
       return GA_COPY_ERROR;
     else {
       err = GpuArray_copy(&copyX, X, GA_ANY_ORDER);
-      if (err != GA_NO_ERROR)
-	goto cleanup;
+      if (err != GA_NO_ERROR) goto cleanup;
       Xp = &copyX;
     }
   }
@@ -87,25 +82,31 @@ int GpuArray_rgemv(cb_transpose transA, double alpha, GpuArray *A,
 
   ctx = gpudata_context(Ap->data);
   err = gpublas_setup(ctx);
-  if (err != GA_NO_ERROR)
-    goto cleanup;
+  if (err != GA_NO_ERROR) goto cleanup;
 
   switch (Ap->typecode) {
   case GA_HALF:
-    err = gpublas_hgemv(o, transA, m, n, (float)alpha, Ap->data, Ap->offset / elsize, lda, Xp->data, Xp->offset / elsize, Xp->strides[0] / elsize, (float)beta, Yp->data, Yp->offset / elsize, Yp->strides[0] / elsize);
+    err = gpublas_hgemv(o, transA, m, n, (float)alpha, Ap->data,
+                        Ap->offset / elsize, lda, Xp->data, Xp->offset / elsize,
+                        Xp->strides[0] / elsize, (float)beta, Yp->data,
+                        Yp->offset / elsize, Yp->strides[0] / elsize);
     break;
   case GA_FLOAT:
-    err = gpublas_sgemv(o, transA, m, n, (float)alpha, Ap->data, Ap->offset / elsize, lda, Xp->data, Xp->offset / elsize, Xp->strides[0] / elsize, (float)beta, Yp->data, Yp->offset / elsize, Yp->strides[0] / elsize);
+    err = gpublas_sgemv(o, transA, m, n, (float)alpha, Ap->data,
+                        Ap->offset / elsize, lda, Xp->data, Xp->offset / elsize,
+                        Xp->strides[0] / elsize, (float)beta, Yp->data,
+                        Yp->offset / elsize, Yp->strides[0] / elsize);
     break;
   case GA_DOUBLE:
-    err = gpublas_dgemv(o, transA, m, n, (double)alpha, Ap->data, Ap->offset / elsize, lda, Xp->data, Xp->offset / elsize, Xp->strides[0] / elsize, (double)beta, Yp->data, Yp->offset / elsize, Yp->strides[0] / elsize);
+    err = gpublas_dgemv(o, transA, m, n, (double)alpha, Ap->data,
+                        Ap->offset / elsize, lda, Xp->data, Xp->offset / elsize,
+                        Xp->strides[0] / elsize, (double)beta, Yp->data,
+                        Yp->offset / elsize, Yp->strides[0] / elsize);
     break;
   }
- cleanup:
-  if (Ap == &copyA)
-    GpuArray_clear(&copyA);
-  if (Xp == &copyX)
-    GpuArray_clear(&copyX);
+cleanup:
+  if (Ap == &copyA) GpuArray_clear(&copyA);
+  if (Xp == &copyX) GpuArray_clear(&copyX);
   return err;
 }
 
@@ -127,9 +128,8 @@ int GpuArray_rgemm(cb_transpose transA, cb_transpose transB, double alpha,
       A->typecode != GA_DOUBLE)
     return GA_INVALID_ERROR;
 
-  if (A->nd != 2 || B->nd != 2 || C->nd != 2 ||
-      A->typecode != A->typecode || B->typecode != A->typecode ||
-      C->typecode != A->typecode)
+  if (A->nd != 2 || B->nd != 2 || C->nd != 2 || A->typecode != A->typecode ||
+      B->typecode != A->typecode || C->typecode != A->typecode)
     return GA_VALUE_ERROR;
 
   if (!(A->flags & GA_ALIGNED) || !(B->flags & GA_ALIGNED) ||
@@ -146,16 +146,13 @@ int GpuArray_rgemm(cb_transpose transA, cb_transpose transB, double alpha,
 
   if (transB == cb_no_trans) {
     n = B->dimensions[1];
-    if (B->dimensions[0] != k)
-      return GA_VALUE_ERROR;
+    if (B->dimensions[0] != k) return GA_VALUE_ERROR;
   } else {
     n = B->dimensions[0];
-    if (B->dimensions[1] != k)
-      return GA_VALUE_ERROR;
+    if (B->dimensions[1] != k) return GA_VALUE_ERROR;
   }
 
-  if (C->dimensions[0] != m || C->dimensions[1] != n)
-    return GA_VALUE_ERROR;
+  if (C->dimensions[0] != m || C->dimensions[1] != n) return GA_VALUE_ERROR;
 
   elsize = gpuarray_get_elsize(A->typecode);
 
@@ -164,8 +161,7 @@ int GpuArray_rgemm(cb_transpose transA, cb_transpose transB, double alpha,
       return GA_COPY_ERROR;
     else {
       err = GpuArray_copy(&copyA, A, GA_F_ORDER);
-      if (err != GA_NO_ERROR)
-	goto cleanup;
+      if (err != GA_NO_ERROR) goto cleanup;
       Ap = &copyA;
     }
   }
@@ -174,8 +170,7 @@ int GpuArray_rgemm(cb_transpose transA, cb_transpose transB, double alpha,
       return GA_COPY_ERROR;
     else {
       err = GpuArray_copy(&copyB, B, GA_F_ORDER);
-      if (err != GA_NO_ERROR)
-	goto cleanup;
+      if (err != GA_NO_ERROR) goto cleanup;
       Bp = &copyB;
     }
   }
@@ -237,26 +232,29 @@ int GpuArray_rgemm(cb_transpose transA, cb_transpose transB, double alpha,
 
   ctx = gpudata_context(Ap->data);
   err = gpublas_setup(ctx);
-  if (err != GA_NO_ERROR)
-    goto cleanup;
+  if (err != GA_NO_ERROR) goto cleanup;
 
   switch (Ap->typecode) {
   case GA_HALF:
-      err = gpublas_hgemm(o, transA, transB, m, n, k, (float)alpha, Ap->data, Ap->offset / elsize, lda, Bp->data, Bp->offset / elsize, ldb, (float)beta, Cp->data, Cp->offset / elsize, ldc);
+    err = gpublas_hgemm(o, transA, transB, m, n, k, (float)alpha, Ap->data,
+                        Ap->offset / elsize, lda, Bp->data, Bp->offset / elsize,
+                        ldb, (float)beta, Cp->data, Cp->offset / elsize, ldc);
     break;
   case GA_FLOAT:
-    err = gpublas_sgemm(o, transA, transB, m, n, k, (float)alpha, Ap->data, Ap->offset / elsize, lda, Bp->data, Bp->offset / elsize, ldb, (float)beta, Cp->data, Cp->offset / elsize, ldc);
+    err = gpublas_sgemm(o, transA, transB, m, n, k, (float)alpha, Ap->data,
+                        Ap->offset / elsize, lda, Bp->data, Bp->offset / elsize,
+                        ldb, (float)beta, Cp->data, Cp->offset / elsize, ldc);
     break;
   case GA_DOUBLE:
-    err = gpublas_dgemm(o, transA, transB, m, n, k, (double)alpha, Ap->data, Ap->offset / elsize, lda, Bp->data, Bp->offset / elsize, ldb, (double)beta, Cp->data, Cp->offset / elsize, ldc);
+    err = gpublas_dgemm(o, transA, transB, m, n, k, (double)alpha, Ap->data,
+                        Ap->offset / elsize, lda, Bp->data, Bp->offset / elsize,
+                        ldb, (double)beta, Cp->data, Cp->offset / elsize, ldc);
     break;
   }
 
- cleanup:
-  if (Ap == &copyA)
-    GpuArray_clear(&copyA);
-  if (Bp == &copyB)
-    GpuArray_clear(&copyB);
+cleanup:
+  if (Ap == &copyA) GpuArray_clear(&copyA);
+  if (Bp == &copyB) GpuArray_clear(&copyB);
   return err;
 }
 
@@ -277,9 +275,8 @@ int GpuArray_rger(double alpha, GpuArray *X, GpuArray *Y, GpuArray *A,
       X->typecode != GA_DOUBLE)
     return GA_INVALID_ERROR;
 
-  if (X->nd != 1 || Y->nd != 1 || A->nd != 2 ||
-      X->typecode != X->typecode || Y->typecode != X->typecode ||
-      A->typecode != X->typecode)
+  if (X->nd != 1 || Y->nd != 1 || A->nd != 2 || X->typecode != X->typecode ||
+      Y->typecode != X->typecode || A->typecode != X->typecode)
     return GA_VALUE_ERROR;
 
   if (!(X->flags & GA_ALIGNED) || !(Y->flags & GA_ALIGNED) ||
@@ -288,8 +285,7 @@ int GpuArray_rger(double alpha, GpuArray *X, GpuArray *Y, GpuArray *A,
 
   m = X->dimensions[0];
   n = Y->dimensions[0];
-  if (A->dimensions[0] != m || A->dimensions[1] != n)
-    return GA_VALUE_ERROR;
+  if (A->dimensions[0] != m || A->dimensions[1] != n) return GA_VALUE_ERROR;
 
   elsize = gpuarray_get_elsize(X->typecode);
 
@@ -298,8 +294,7 @@ int GpuArray_rger(double alpha, GpuArray *X, GpuArray *Y, GpuArray *A,
       return GA_COPY_ERROR;
     else {
       err = GpuArray_copy(&copyX, X, GA_ANY_ORDER);
-      if (err != GA_NO_ERROR)
-	goto cleanup;
+      if (err != GA_NO_ERROR) goto cleanup;
       Xp = &copyX;
     }
   }
@@ -308,8 +303,7 @@ int GpuArray_rger(double alpha, GpuArray *X, GpuArray *Y, GpuArray *A,
       return GA_COPY_ERROR;
     else {
       err = GpuArray_copy(&copyY, Y, GA_ANY_ORDER);
-      if (err != GA_NO_ERROR)
-	goto cleanup;
+      if (err != GA_NO_ERROR) goto cleanup;
       Yp = &copyY;
     }
   }
@@ -332,32 +326,38 @@ int GpuArray_rger(double alpha, GpuArray *X, GpuArray *Y, GpuArray *A,
 
   ctx = gpudata_context(Xp->data);
   err = gpublas_setup(ctx);
-  if (err != GA_NO_ERROR)
-    goto cleanup;
+  if (err != GA_NO_ERROR) goto cleanup;
 
-  switch(Xp->typecode) {
+  switch (Xp->typecode) {
   case GA_HALF:
-      err = gpublas_hger(o, m, n, (float)alpha, Xp->data, Xp->offset / elsize, Xp->strides[0] / elsize, Yp->data, Yp->offset / elsize, Yp->strides[0] / elsize, Ap->data, Ap->offset / elsize, lda);
+    err = gpublas_hger(o, m, n, (float)alpha, Xp->data, Xp->offset / elsize,
+                       Xp->strides[0] / elsize, Yp->data, Yp->offset / elsize,
+                       Yp->strides[0] / elsize, Ap->data, Ap->offset / elsize,
+                       lda);
     break;
   case GA_FLOAT:
-    err = gpublas_sger(o, m, n, (float)alpha, Xp->data, Xp->offset / elsize, Xp->strides[0] / elsize, Yp->data, Yp->offset / elsize, Yp->strides[0] / elsize, Ap->data, Ap->offset / elsize, lda);
+    err = gpublas_sger(o, m, n, (float)alpha, Xp->data, Xp->offset / elsize,
+                       Xp->strides[0] / elsize, Yp->data, Yp->offset / elsize,
+                       Yp->strides[0] / elsize, Ap->data, Ap->offset / elsize,
+                       lda);
     break;
   case GA_DOUBLE:
-    err = gpublas_dger(o, m, n, (double)alpha, Xp->data, Xp->offset / elsize, Xp->strides[0] / elsize, Yp->data, Yp->offset / elsize, Yp->strides[0] / elsize, Ap->data, Ap->offset / elsize, lda);
+    err = gpublas_dger(o, m, n, (double)alpha, Xp->data, Xp->offset / elsize,
+                       Xp->strides[0] / elsize, Yp->data, Yp->offset / elsize,
+                       Yp->strides[0] / elsize, Ap->data, Ap->offset / elsize,
+                       lda);
     break;
   }
 
- cleanup:
-  if (Xp == &copyX)
-    GpuArray_clear(&copyX);
-  if (Yp == &copyY)
-    GpuArray_clear(&copyY);
+cleanup:
+  if (Xp == &copyX) GpuArray_clear(&copyX);
+  if (Yp == &copyY) GpuArray_clear(&copyY);
   return err;
 }
 
-int GpuArray_rgemmBatch_3d(cb_transpose transA, cb_transpose transB, double alpha,
-                           GpuArray *A, GpuArray *B, double beta, GpuArray *C,
-                           int nocopy) {
+int GpuArray_rgemmBatch_3d(cb_transpose transA, cb_transpose transB,
+                           double alpha, GpuArray *A, GpuArray *B, double beta,
+                           GpuArray *C, int nocopy) {
   GpuArray *Ap = A;
   GpuArray copyA;
   GpuArray *Bp = B;
@@ -375,9 +375,8 @@ int GpuArray_rgemmBatch_3d(cb_transpose transA, cb_transpose transB, double alph
   if (A->typecode != GA_FLOAT && A->typecode != GA_DOUBLE)
     return GA_INVALID_ERROR;
 
-  if (A->nd != 3 || B->nd != 3 || C->nd != 3 ||
-      A->typecode != A->typecode || B->typecode != A->typecode ||
-      C->typecode != A->typecode)
+  if (A->nd != 3 || B->nd != 3 || C->nd != 3 || A->typecode != A->typecode ||
+      B->typecode != A->typecode || C->typecode != A->typecode)
     return GA_VALUE_ERROR;
 
   if (!(A->flags & GA_ALIGNED) || !(B->flags & GA_ALIGNED) ||
@@ -398,16 +397,13 @@ int GpuArray_rgemmBatch_3d(cb_transpose transA, cb_transpose transB, double alph
 
   if (transB == cb_no_trans) {
     n = B->dimensions[2];
-    if (B->dimensions[1] != k)
-      return GA_VALUE_ERROR;
+    if (B->dimensions[1] != k) return GA_VALUE_ERROR;
   } else {
     n = B->dimensions[1];
-    if (B->dimensions[2] != k)
-      return GA_VALUE_ERROR;
+    if (B->dimensions[2] != k) return GA_VALUE_ERROR;
   }
 
-  if (C->dimensions[1] != m || C->dimensions[2] != n)
-    return GA_VALUE_ERROR;
+  if (C->dimensions[1] != m || C->dimensions[2] != n) return GA_VALUE_ERROR;
 
   elsize = gpuarray_get_elsize(A->typecode);
 
@@ -417,8 +413,7 @@ int GpuArray_rgemmBatch_3d(cb_transpose transA, cb_transpose transB, double alph
       return GA_COPY_ERROR;
     else {
       err = GpuArray_copy(&copyA, A, GA_F_ORDER);
-      if (err != GA_NO_ERROR)
-	goto cleanup;
+      if (err != GA_NO_ERROR) goto cleanup;
       Ap = &copyA;
     }
   }
@@ -427,8 +422,7 @@ int GpuArray_rgemmBatch_3d(cb_transpose transA, cb_transpose transB, double alph
       return GA_COPY_ERROR;
     else {
       err = GpuArray_copy(&copyB, B, GA_F_ORDER);
-      if (err != GA_NO_ERROR)
-	goto cleanup;
+      if (err != GA_NO_ERROR) goto cleanup;
       Bp = &copyB;
     }
   }
@@ -490,16 +484,15 @@ int GpuArray_rgemmBatch_3d(cb_transpose transA, cb_transpose transB, double alph
 
   ctx = gpudata_context(Ap->data);
   err = gpublas_setup(ctx);
-  if (err != GA_NO_ERROR)
-    goto cleanup;
+  if (err != GA_NO_ERROR) goto cleanup;
 
-  A_datas = (gpudata**)malloc(batchCount * sizeof(gpudata*));
-  B_datas = (gpudata**)malloc(batchCount * sizeof(gpudata*));
-  C_datas = (gpudata**)malloc(batchCount * sizeof(gpudata*));
+  A_datas = (gpudata **)malloc(batchCount * sizeof(gpudata *));
+  B_datas = (gpudata **)malloc(batchCount * sizeof(gpudata *));
+  C_datas = (gpudata **)malloc(batchCount * sizeof(gpudata *));
 
-  A_offsets = (size_t*)malloc(batchCount * sizeof(size_t));
-  B_offsets = (size_t*)malloc(batchCount * sizeof(size_t));
-  C_offsets = (size_t*)malloc(batchCount * sizeof(size_t));
+  A_offsets = (size_t *)malloc(batchCount * sizeof(size_t));
+  B_offsets = (size_t *)malloc(batchCount * sizeof(size_t));
+  C_offsets = (size_t *)malloc(batchCount * sizeof(size_t));
 
   for (i = 0; i < batchCount; i++) {
     A_datas[i] = Ap->data;
@@ -512,34 +505,33 @@ int GpuArray_rgemmBatch_3d(cb_transpose transA, cb_transpose transB, double alph
 
   switch (C->typecode) {
   case GA_HALF:
-    err = gpublas_hgemmBatch(o, transA, transB, m, n, k, (float)alpha,
-                             A_datas, A_offsets, lda,
-                             B_datas, B_offsets, ldb,
-                             (float)beta,
-                             C_datas, C_offsets, ldc, batchCount, 0);
+    err =
+        gpublas_hgemmBatch(o, transA, transB, m, n, k, (float)alpha, A_datas,
+                           A_offsets, lda, B_datas, B_offsets, ldb, (float)beta,
+                           C_datas, C_offsets, ldc, batchCount, 0);
     break;
   case GA_FLOAT:
-    err = gpublas_sgemmBatch(o, transA, transB, m, n, k, (float)alpha,
-                             A_datas, A_offsets, lda,
-                             B_datas, B_offsets, ldb,
-                             (float)beta,
-                             C_datas, C_offsets, ldc, batchCount, 0);
+    err =
+        gpublas_sgemmBatch(o, transA, transB, m, n, k, (float)alpha, A_datas,
+                           A_offsets, lda, B_datas, B_offsets, ldb, (float)beta,
+                           C_datas, C_offsets, ldc, batchCount, 0);
     break;
   case GA_DOUBLE:
-    err = gpublas_dgemmBatch(o, transA, transB, m, n, k, (double)alpha,
-                             A_datas, A_offsets, lda,
-                             B_datas, B_offsets, ldb,
-                             (double)beta,
-                             C_datas, C_offsets, ldc, batchCount, 0);
+    err = gpublas_dgemmBatch(o, transA, transB, m, n, k, (double)alpha, A_datas,
+                             A_offsets, lda, B_datas, B_offsets, ldb,
+                             (double)beta, C_datas, C_offsets, ldc, batchCount,
+                             0);
     break;
   }
 
-  cleanup:
-  free(A_datas); free(B_datas); free(C_datas);
-  free(A_offsets); free(B_offsets); free(C_offsets);
-  if (Ap == &copyA)
-    GpuArray_clear(&copyA);
-  if (Bp == &copyB)
-    GpuArray_clear(&copyB);
+cleanup:
+  free(A_datas);
+  free(B_datas);
+  free(C_datas);
+  free(A_offsets);
+  free(B_offsets);
+  free(C_offsets);
+  if (Ap == &copyA) GpuArray_clear(&copyA);
+  if (Bp == &copyB) GpuArray_clear(&copyB);
   return err;
 }

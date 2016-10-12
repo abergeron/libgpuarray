@@ -46,27 +46,26 @@ typedef struct _gpuelemwise_arg {
  * @{
  */
 
-  /**
+/**
    * Argument is a scalar passed from the CPU, requires nd == 0.
    */
-#define GE_SCALAR      0x0001
-
-  /**
-   * Array is read from in the expression.
-   */
-#define GE_READ        0x0002
-
-  /**
-   * Array is written to in the expression.
-   */
-#define GE_WRITE       0x0004
+#define GE_SCALAR 0x0001
 
 /**
+   * Array is read from in the expression.
+   */
+#define GE_READ 0x0002
+
+/**
+   * Array is written to in the expression.
+   */
+#define GE_WRITE 0x0004
+
+  /**
  * }@
  */
 
 } gpuelemwise_arg;
-
 
 /**
  * Create a new GpuElemwise.
@@ -97,11 +96,9 @@ typedef struct _gpuelemwise_arg {
  */
 GPUARRAY_PUBLIC GpuElemwise *GpuElemwise_new(gpucontext *ctx,
                                              const char *preamble,
-                                             const char *expr,
-                                             unsigned int n,
+                                             const char *expr, unsigned int n,
                                              gpuelemwise_arg *args,
-                                             unsigned int nd,
-                                             int flags);
+                                             unsigned int nd, int flags);
 
 /**
  * \defgroup elem_flags GpuElemwise flags
@@ -111,7 +108,7 @@ GPUARRAY_PUBLIC GpuElemwise *GpuElemwise_new(gpucontext *ctx,
 /**
  * Don't precompile kernels for 64-bits addressing.
  */
-#define GE_NOADDR64    0x0001
+#define GE_NOADDR64 0x0001
 
 /**
  * Convert float16 inputs to float32 for computation.
@@ -139,22 +136,20 @@ GPUARRAY_PUBLIC void GpuElemwise_free(GpuElemwise *ge);
  */
 GPUARRAY_PUBLIC int GpuElemwise_call(GpuElemwise *ge, void **args, int flags);
 
-
 /**
  * \defgroup elem_call_flags GpuElemwise call flags
  * @{
  */
 
-
 /**
  * Allow broadcasting of dimensions of size 1.
  */
-#define GE_BROADCAST   0x0100
+#define GE_BROADCAST 0x0100
 
 /**
  * Disable dimension collapsing (not recommended).
  */
-#define GE_NOCOLLAPSE  0x0200
+#define GE_NOCOLLAPSE 0x0200
 
 /**
  * @}

@@ -26,24 +26,18 @@ extern void *cl_get_buf(void);
 
 static ext ext_list[] = {
 #ifdef WITH_CUDA
-  {"cuda_enter", cuda_enter},
-  {"cuda_exit", cuda_exit},
-  {"cuda_make_ctx", cuda_make_ctx},
-  {"cuda_get_stream", cuda_get_stream},
-  {"cuda_make_buf", cuda_make_buf},
-  {"cuda_get_sz", cuda_get_sz},
-  {"cuda_wait", cuda_wait},
-  {"cuda_record", cuda_record},
+    {"cuda_enter", cuda_enter},       {"cuda_exit", cuda_exit},
+    {"cuda_make_ctx", cuda_make_ctx}, {"cuda_get_stream", cuda_get_stream},
+    {"cuda_make_buf", cuda_make_buf}, {"cuda_get_sz", cuda_get_sz},
+    {"cuda_wait", cuda_wait},         {"cuda_record", cuda_record},
 #endif
 #ifdef WITH_OPENCL
-  {"cl_make_ctx", cl_make_ctx},
-  {"cl_get_stream", cl_get_stream},
-  {"cl_make_buf", cl_make_buf},
-  {"cl_get_buf", cl_get_buf},
+    {"cl_make_ctx", cl_make_ctx},     {"cl_get_stream", cl_get_stream},
+    {"cl_make_buf", cl_make_buf},     {"cl_get_buf", cl_get_buf},
 #endif
 };
 
-#define N_EXT (sizeof(ext_list)/sizeof(ext_list[0]))
+#define N_EXT (sizeof(ext_list) / sizeof(ext_list[0]))
 
 void *gpuarray_get_extension(const char *name) {
   unsigned int i;

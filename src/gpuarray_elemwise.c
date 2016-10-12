@@ -1,7 +1,7 @@
 #include <assert.h>
 
-#include <gpuarray/elemwise.h>
 #include <gpuarray/array.h>
+#include <gpuarray/elemwise.h>
 #include <gpuarray/error.h>
 #include <gpuarray/kernel.h>
 #include <gpuarray/util.h>
@@ -13,18 +13,18 @@ struct _GpuElemwise {
   const char *expr; /* Expression code (to be able to build kernels on-demand) */
   const char *preamble; /* Preamble code */
   gpuelemwise_arg *args; /* Argument descriptors */
-  GpuKernel k_contig; /* Contiguous kernel */
-  GpuKernel *k_basic; /* Normal basic kernels */
+  GpuKernel k_contig;    /* Contiguous kernel */
+  GpuKernel *k_basic;    /* Normal basic kernels */
   GpuKernel *k_basic_32; /* 32-bit address basic kernels */
-  size_t *dims; /* Preallocated shape buffer for dimension collapsing */
+  size_t *dims;      /* Preallocated shape buffer for dimension collapsing */
   ssize_t **strides; /* Preallocated strides buffer for dimension collapsing */
-  unsigned int nd; /* Current maximum number of dimensions allocated */
-  unsigned int n; /* Number of arguments */
+  unsigned int nd;   /* Current maximum number of dimensions allocated */
+  unsigned int n;    /* Number of arguments */
   unsigned int narray; /* Number of array arguments */
-  int flags; /* Flags for the operation (none at the moment */
+  int flags;           /* Flags for the operation (none at the moment */
 };
 
-#define GEN_ADDR32      0x1
+#define GEN_ADDR32 0x1
 #define GEN_CONVERT_F16 0x2
 
 /* This makes sure we have the same value for those flags since we use some shortcuts */
@@ -43,8 +43,7 @@ static inline const char *ctype(int typecode) {
 /* dst has to be zero-initialized on entry */
 static int copy_arg(gpuelemwise_arg *dst, gpuelemwise_arg *src) {
   dst->name = strdup(src->name);
-  if (dst->name == NULL)
-    return -1;
+  if (dst->name == NULL) return -1;
 
   dst->typecode = src->typecode;
   dst->flags = src->flags;
@@ -64,11 +63,10 @@ static gpuelemwise_arg *copy_args(unsigned int n, gpuelemwise_arg *a) {
   if (res == NULL) return NULL;
 
   for (i = 0; i < n; i++)
-    if (copy_arg(&res[i], &a[i]) != 0)
-      goto bail;
+    if (copy_arg(&res[i], &a[i]) != 0) goto bail;
 
   return res;
- bail:
+bail:
   for (; i > 0; i--) {
     clear_arg(&res[i]);
   }
@@ -79,8 +77,7 @@ static void free_args(unsigned int n, gpuelemwise_arg *args) {
   unsigned int i;
 
   if (args != NULL)
-    for (i = 0; i < n; i++)
-      clear_arg(&args[i]);
+    for (i = 0; i < n; i++) clear_arg(&args[i]);
   free(args);
 }
 
@@ -91,13 +88,13 @@ static int reallocaz(void **p, size_t elsz, size_t old, size_t new) {
 
   assert(old <= new);
 
-  if ((new >= MUL_NO_OVERFLOW || elsz >= MUL_NO_OVERFLOW) &&
-      new > 0 && SIZE_MAX / new < elsz) {
+  if ((new >= MUL_NO_OVERFLOW || elsz >= MUL_NO_OVERFLOW) && new > 0 &&
+      SIZE_MAX / new < elsz) {
     return 1;
   }
-  res = realloc(*p, elsz*new);
+  res = realloc(*p, elsz * new);
   if (res == NULL) return 1;
-  memset(res + (elsz*old), 0, elsz*(new-old));
+  memset(res + (elsz * old), 0, elsz * (new - old));
   *p = (void *)res;
   return 0;
 }
@@ -120,13 +117,11 @@ static int ge_grow(GpuElemwise *ge, unsigned int nd) {
 }
 
 static int gen_elemwise_basic_kernel(GpuKernel *k, gpucontext *ctx,
-                                     char **err_str,
-                                     const char *preamble,
+                                     char **err_str, const char *preamble,
                                      const char *expr,
                                      unsigned int nd, /* Number of dims */
-                                     unsigned int n, /* Length of args */
-                                     gpuelemwise_arg *args,
-                                     int gen_flags) {
+                                     unsigned int n,  /* Length of args */
+                                     gpuelemwise_arg *args, int gen_flags) {
   strb sb = STRB_STATIC_INIT;
   unsigned int i, _i, j;
   int *ktypes;
@@ -148,13 +143,11 @@ static int gen_elemwise_basic_kernel(GpuKernel *k, gpucontext *ctx,
   }
 
   ktypes = calloc(p, sizeof(int));
-  if (ktypes == NULL)
-    return GA_MEMORY_ERROR;
+  if (ktypes == NULL) return GA_MEMORY_ERROR;
 
   p = 0;
 
-  if (preamble)
-    strb_appends(&sb, preamble);
+  if (preamble) strb_appends(&sb, preamble);
   strb_appends(&sb, "\nKERNEL void elem(const ga_size n, ");
   ktypes[p++] = GA_SIZE;
   for (i = 0; i < nd; i++) {
@@ -171,7 +164,7 @@ static int gen_elemwise_basic_kernel(GpuKernel *k, gpucontext *ctx,
 
       for (i = 0; i < nd; i++) {
         strb_appendf(&sb, "const ga_ssize %s_str_%u%s", args[j].name, i,
-                     (i == (nd - 1)) ? "": ", ");
+                     (i == (nd - 1)) ? "" : ", ");
         ktypes[p++] = GA_SSIZE;
       }
     } else {
@@ -181,41 +174,49 @@ static int gen_elemwise_basic_kernel(GpuKernel *k, gpucontext *ctx,
     if (j != (n - 1)) strb_appends(&sb, ", ");
   }
   strb_appendf(&sb, ") {\n"
-               "const %s idx = LDIM_0 * GID_0 + LID_0;\n"
-               "const %s numThreads = LDIM_0 * GDIM_0;\n"
-               "%s i;\n", size, size, size);
+                    "const %s idx = LDIM_0 * GID_0 + LID_0;\n"
+                    "const %s numThreads = LDIM_0 * GDIM_0;\n"
+                    "%s i;\n",
+               size, size, size);
 
   strb_appends(&sb, "for(i = idx; i < n; i += numThreads) {\n");
-  if (nd > 0)
-    strb_appendf(&sb, "%s ii = i;\n%s pos;\n", size, size);
+  if (nd > 0) strb_appendf(&sb, "%s ii = i;\n%s pos;\n", size, size);
   for (j = 0; j < n; j++) {
     if (is_array(args[j]))
-      strb_appendf(&sb, "%s %s_p = %s_offset;\n",
-                   size, args[j].name, args[j].name);
+      strb_appendf(&sb, "%s %s_p = %s_offset;\n", size, args[j].name,
+                   args[j].name);
   }
   for (_i = nd; _i > 0; _i--) {
     i = _i - 1;
     if (i > 0)
-      strb_appendf(&sb, "pos = ii %% (%s)dim%u;\nii = ii / (%s)dim%u;\n", size, i, size, i);
+      strb_appendf(&sb, "pos = ii %% (%s)dim%u;\nii = ii / (%s)dim%u;\n", size,
+                   i, size, i);
     else
       strb_appends(&sb, "pos = ii;\n");
     for (j = 0; j < n; j++) {
       if (is_array(args[j]))
-        strb_appendf(&sb, "%s_p += pos * (%s)%s_str_%u;\n", args[j].name,
-                     ssize, args[j].name, i);
+        strb_appendf(&sb, "%s_p += pos * (%s)%s_str_%u;\n", args[j].name, ssize,
+                     args[j].name, i);
     }
   }
   for (j = 0; j < n; j++) {
     if (is_array(args[j])) {
-      strb_appendf(&sb, "%s %s;", ctype(ISSET(gen_flags, GEN_CONVERT_F16) && args[j].typecode == GA_HALF ?
-                                        GA_FLOAT : args[j].typecode), args[j].name);
+      strb_appendf(&sb, "%s %s;", ctype(ISSET(gen_flags, GEN_CONVERT_F16) &&
+                                                args[j].typecode == GA_HALF
+                                            ? GA_FLOAT
+                                            : args[j].typecode),
+                   args[j].name);
       if (ISSET(args[j].flags, GE_READ)) {
         if (args[j].typecode == GA_HALF && ISSET(gen_flags, GEN_CONVERT_F16)) {
-          strb_appendf(&sb, "%s = load_half((GLOBAL_MEM ga_half *)(((GLOBAL_MEM char *)%s_data) + %s_p));\n",
+          strb_appendf(&sb, "%s = load_half((GLOBAL_MEM ga_half "
+                            "*)(((GLOBAL_MEM char *)%s_data) + %s_p));\n",
                        args[j].name, args[j].name, args[j].name);
         } else {
-          strb_appendf(&sb, "%s = *(GLOBAL_MEM %s *)(((GLOBAL_MEM char *)%s_data) + %s_p);\n",
-                       args[j].name, ctype(args[j].typecode), args[j].name, args[j].name);
+          strb_appendf(
+              &sb,
+              "%s = *(GLOBAL_MEM %s *)(((GLOBAL_MEM char *)%s_data) + %s_p);\n",
+              args[j].name, ctype(args[j].typecode), args[j].name,
+              args[j].name);
         }
       }
     }
@@ -225,11 +226,14 @@ static int gen_elemwise_basic_kernel(GpuKernel *k, gpucontext *ctx,
   for (j = 0; j < n; j++) {
     if (is_array(args[j]) && ISSET(args[j].flags, GE_WRITE)) {
       if (args[j].typecode == GA_HALF && ISSET(gen_flags, GEN_CONVERT_F16)) {
-        strb_appendf(&sb, "store_half((GLOBAL_MEM ga_half *)(((GLOBAL_MEM char *)%s_data) + %s_p), %s);\n",
+        strb_appendf(&sb, "store_half((GLOBAL_MEM ga_half *)(((GLOBAL_MEM char "
+                          "*)%s_data) + %s_p), %s);\n",
                      args[j].name, args[j].name, args[j].name);
       } else {
-        strb_appendf(&sb, "*(GLOBAL_MEM %s *)(((GLOBAL_MEM char *)%s_data) + %s_p) = %s;\n",
-                     ctype(args[j].typecode), args[j].name, args[j].name, args[j].name);
+        strb_appendf(
+            &sb,
+            "*(GLOBAL_MEM %s *)(((GLOBAL_MEM char *)%s_data) + %s_p) = %s;\n",
+            ctype(args[j].typecode), args[j].name, args[j].name, args[j].name);
       }
     }
   }
@@ -239,9 +243,9 @@ static int gen_elemwise_basic_kernel(GpuKernel *k, gpucontext *ctx,
     goto bail;
   }
 
-  res = GpuKernel_init(k, ctx, 1, (const char **)&sb.s, &sb.l, "elem",
-                       p, ktypes, flags, err_str);
- bail:
+  res = GpuKernel_init(k, ctx, 1, (const char **)&sb.s, &sb.l, "elem", p,
+                       ktypes, flags, err_str);
+bail:
   free(ktypes);
   strb_clear(&sb);
   return res;
@@ -254,22 +258,20 @@ static ssize_t **strides_array(unsigned int num, unsigned int nd) {
   if (res == NULL) return NULL;
   for (i = 0; i < num; i++) {
     res[i] = calloc(nd, sizeof(ssize_t));
-    if (res[i] == NULL)
-      goto bail;
+    if (res[i] == NULL) goto bail;
   }
 
   return res;
 
- bail:
-  for (i = 0; i < num; i++)
-    free(res[i]);
+bail:
+  for (i = 0; i < num; i++) free(res[i]);
   free(res);
   return NULL;
 }
 
-static int check_basic(GpuElemwise *ge, void **args, int flags,
-                       size_t *_n, unsigned int *_nd, size_t **_dims,
-                       ssize_t ***_strides, int *_call32) {
+static int check_basic(GpuElemwise *ge, void **args, int flags, size_t *_n,
+                       unsigned int *_nd, size_t **_dims, ssize_t ***_strides,
+                       int *_call32) {
   size_t n;
   GpuArray *a = NULL, *v;
   unsigned int i, j, p, num_arrays = 0, nd = 0, nnd;
@@ -283,31 +285,29 @@ static int check_basic(GpuElemwise *ge, void **args, int flags,
         a = (GpuArray *)args[i];
         nd = a->nd;
       }
-      if (((GpuArray *)args[i])->nd != nd)
-        return GA_VALUE_ERROR;
+      if (((GpuArray *)args[i])->nd != nd) return GA_VALUE_ERROR;
     }
   }
 
-  if (a == NULL)
-    return GA_VALUE_ERROR;
+  if (a == NULL) return GA_VALUE_ERROR;
 
   /* Check if we need to grow the internal buffers */
   if (nd > ge->nd) {
     nnd = ge->nd * 2;
     while (nd > nnd) nnd *= 2;
-    if (ge_grow(ge, nnd))
-      return GA_MEMORY_ERROR;
+    if (ge_grow(ge, nnd)) return GA_MEMORY_ERROR;
   }
 
   /* Now we know that all array arguments have the same number of
      dimensions */
 
   /* And copy their initial values in */
-  memcpy(ge->dims, a->dimensions, nd*sizeof(size_t));
+  memcpy(ge->dims, a->dimensions, nd * sizeof(size_t));
   p = 0;
   for (i = 0; i < ge->n; i++) {
     if (is_array(ge->args[i])) {
-      memcpy(ge->strides[p], ((GpuArray *)args[i])->strides, nd*sizeof(ssize_t));
+      memcpy(ge->strides[p], ((GpuArray *)args[i])->strides,
+             nd * sizeof(ssize_t));
       p++;
     }
   }
@@ -347,7 +347,7 @@ static int check_basic(GpuElemwise *ge, void **args, int flags,
                    ge->strides[p][j] < SADDR32_MAX);
         p++;
       } /* is_array() */
-    } /* for each arg */
+    }   /* for each arg */
     /* We have the final value in dims[j] */
     n *= ge->dims[j];
   } /* for each dim */
@@ -377,17 +377,16 @@ static int call_basic(GpuElemwise *ge, void **args, size_t n, unsigned int nd,
   if (nd == 0) return GA_VALUE_ERROR;
 
   if (call32)
-    k = &ge->k_basic_32[nd-1];
+    k = &ge->k_basic_32[nd - 1];
   else
-    k = &ge->k_basic[nd-1];
+    k = &ge->k_basic[nd - 1];
 
   if (!k_initialized(k)) {
-    err = gen_elemwise_basic_kernel(k, GpuKernel_context(&ge->k_contig), NULL,
-                                    ge->preamble, ge->expr, nd, ge->n,
-                                    ge->args, ((call32 ? GEN_ADDR32 : 0) |
-                                               (ge->flags & GE_CONVERT_F16)));
-    if (err != GA_NO_ERROR)
-      return err;
+    err = gen_elemwise_basic_kernel(
+        k, GpuKernel_context(&ge->k_contig), NULL, ge->preamble, ge->expr, nd,
+        ge->n, ge->args,
+        ((call32 ? GEN_ADDR32 : 0) | (ge->flags & GE_CONVERT_F16)));
+    if (err != GA_NO_ERROR) return err;
   }
 
   err = GpuKernel_setarg(k, p++, &n);
@@ -419,17 +418,14 @@ static int call_basic(GpuElemwise *ge, void **args, size_t n, unsigned int nd,
   if (err != GA_NO_ERROR) goto error;
 
   err = GpuKernel_call(k, 1, &ls, &gs, 0, NULL);
- error:
+error:
   return err;
 }
 
-static int gen_elemwise_contig_kernel(GpuKernel *k,
-                                      gpucontext *ctx, char **err_str,
-                                      const char *preamble,
-                                      const char *expr,
-                                      unsigned int n,
-                                      gpuelemwise_arg *args,
-                                      int gen_flags) {
+static int gen_elemwise_contig_kernel(GpuKernel *k, gpucontext *ctx,
+                                      char **err_str, const char *preamble,
+                                      const char *expr, unsigned int n,
+                                      gpuelemwise_arg *args, int gen_flags) {
   strb sb = STRB_STATIC_INIT;
   int *ktypes = NULL;
   unsigned int p;
@@ -440,17 +436,14 @@ static int gen_elemwise_contig_kernel(GpuKernel *k,
   flags |= gpuarray_type_flagsa(n, args);
 
   p = 1;
-  for (j = 0; j < n; j++)
-    p += ISSET(args[j].flags, GE_SCALAR) ? 1 : 2;
+  for (j = 0; j < n; j++) p += ISSET(args[j].flags, GE_SCALAR) ? 1 : 2;
 
   ktypes = calloc(p, sizeof(int));
-  if (ktypes == NULL)
-    goto bail;
+  if (ktypes == NULL) goto bail;
 
   p = 0;
 
-  if (preamble)
-    strb_appends(&sb, preamble);
+  if (preamble) strb_appends(&sb, preamble);
   strb_appends(&sb, "\nKERNEL void elem(const ga_size n, ");
   ktypes[p++] = GA_SIZE;
   for (j = 0; j < n; j++) {
@@ -463,18 +456,17 @@ static int gen_elemwise_contig_kernel(GpuKernel *k,
       strb_appendf(&sb, "%s %s", ctype(args[j].typecode), args[j].name);
       ktypes[p++] = args[j].typecode;
     }
-    if (j != (n - 1))
-      strb_appends(&sb, ", ");
+    if (j != (n - 1)) strb_appends(&sb, ", ");
   }
   strb_appends(&sb, ") {\n"
-               "const ga_size idx = LDIM_0 * GID_0 + LID_0;\n"
-               "const ga_size numThreads = LDIM_0 * GDIM_0;\n"
-               "ga_size i;\n"
-               "GLOBAL_MEM char *tmp;\n\n");
+                    "const ga_size idx = LDIM_0 * GID_0 + LID_0;\n"
+                    "const ga_size numThreads = LDIM_0 * GDIM_0;\n"
+                    "ga_size i;\n"
+                    "GLOBAL_MEM char *tmp;\n\n");
   for (j = 0; j < n; j++) {
     if (is_array(args[j])) {
       strb_appendf(&sb, "tmp = (GLOBAL_MEM char *)%s_p;"
-                   "tmp += %s_offset; %s_p = (GLOBAL_MEM %s *)tmp;",
+                        "tmp += %s_offset; %s_p = (GLOBAL_MEM %s *)tmp;",
                    args[j].name, args[j].name, args[j].name,
                    ctype(args[j].typecode));
     }
@@ -483,11 +475,15 @@ static int gen_elemwise_contig_kernel(GpuKernel *k,
   strb_appends(&sb, "for (i = idx; i < n; i += numThreads) {\n");
   for (j = 0; j < n; j++) {
     if (is_array(args[j])) {
-      strb_appendf(&sb, "%s %s;\n", ctype(ISSET(gen_flags, GEN_CONVERT_F16) && args[j].typecode == GA_HALF ?
-                                          GA_FLOAT : args[j].typecode), args[j].name);
+      strb_appendf(&sb, "%s %s;\n", ctype(ISSET(gen_flags, GEN_CONVERT_F16) &&
+                                                  args[j].typecode == GA_HALF
+                                              ? GA_FLOAT
+                                              : args[j].typecode),
+                   args[j].name);
       if (ISSET(args[j].flags, GE_READ)) {
         if (args[j].typecode == GA_HALF && ISSET(gen_flags, GEN_CONVERT_F16)) {
-          strb_appendf(&sb, "%s = load_half(&%s_p[i]);\n", args[j].name, args[j].name);
+          strb_appendf(&sb, "%s = load_half(&%s_p[i]);\n", args[j].name,
+                       args[j].name);
         } else {
           strb_appendf(&sb, "%s = %s_p[i];\n", args[j].name, args[j].name);
         }
@@ -501,7 +497,8 @@ static int gen_elemwise_contig_kernel(GpuKernel *k,
     if (is_array(args[j])) {
       if (ISSET(args[j].flags, GE_WRITE)) {
         if (args[j].typecode == GA_HALF && ISSET(gen_flags, GEN_CONVERT_F16)) {
-          strb_appendf(&sb, "store_half(&%s_p[i], %s);\n", args[j].name, args[j].name);
+          strb_appendf(&sb, "store_half(&%s_p[i], %s);\n", args[j].name,
+                       args[j].name);
         } else {
           strb_appendf(&sb, "%s_p[i] = %s;\n", args[j].name, args[j].name);
         }
@@ -510,19 +507,17 @@ static int gen_elemwise_contig_kernel(GpuKernel *k,
   }
   strb_appends(&sb, "}\n}\n");
 
-  if (strb_error(&sb))
-    goto bail;
+  if (strb_error(&sb)) goto bail;
 
-  res = GpuKernel_init(k, ctx, 1, (const char **)&sb.s, &sb.l, "elem",
-                       p, ktypes, flags, err_str);
- bail:
+  res = GpuKernel_init(k, ctx, 1, (const char **)&sb.s, &sb.l, "elem", p,
+                       ktypes, flags, err_str);
+bail:
   strb_clear(&sb);
   free(ktypes);
   return res;
 }
 
-static int check_contig(GpuElemwise *ge, void **args,
-                        size_t *_n, int *contig) {
+static int check_contig(GpuElemwise *ge, void **args, size_t *_n, int *contig) {
   GpuArray *a = NULL, *v;
   size_t n = 1;
   unsigned int i, j;
@@ -538,11 +533,9 @@ static int check_contig(GpuElemwise *ge, void **args,
       c_contig &= GpuArray_IS_C_CONTIGUOUS(v);
       f_contig &= GpuArray_IS_F_CONTIGUOUS(v);
       if (a != v) {
-        if (a->nd != v->nd)
-          return GA_INVALID_ERROR;
+        if (a->nd != v->nd) return GA_INVALID_ERROR;
         for (j = 0; j < a->nd; j++) {
-          if (v->dimensions[j] != a->dimensions[j])
-            return GA_VALUE_ERROR;
+          if (v->dimensions[j] != a->dimensions[j]) return GA_VALUE_ERROR;
         }
       }
     }
@@ -578,10 +571,10 @@ static int call_contig(GpuElemwise *ge, void **args, size_t n) {
   return GpuKernel_call(&ge->k_contig, 1, &ls, &gs, 0, NULL);
 }
 
-GpuElemwise *GpuElemwise_new(gpucontext *ctx,
-                             const char *preamble, const char *expr,
-                             unsigned int n, gpuelemwise_arg *args,
-                             unsigned int nd, int flags) {
+GpuElemwise *GpuElemwise_new(gpucontext *ctx, const char *preamble,
+                             const char *expr, unsigned int n,
+                             gpuelemwise_arg *args, unsigned int nd,
+                             int flags) {
   GpuElemwise *res;
 #ifdef DEBUG
   char *errstr = NULL;
@@ -597,17 +590,14 @@ GpuElemwise *GpuElemwise_new(gpucontext *ctx,
   res->n = n;
 
   res->expr = strdup(expr);
-  if (res->expr == NULL)
-    goto fail;
+  if (res->expr == NULL) goto fail;
   if (preamble != NULL) {
     res->preamble = strdup(preamble);
-    if (res->preamble == NULL)
-      goto fail;
+    if (res->preamble == NULL) goto fail;
   }
 
   res->args = copy_args(n, args);
-  if (res->args == NULL)
-    goto fail;
+  if (res->args == NULL) goto fail;
 
   /* Count the arrays in the arguements */
   res->narray = 0;
@@ -616,18 +606,14 @@ GpuElemwise *GpuElemwise_new(gpucontext *ctx,
 
   while (res->nd < nd) res->nd *= 2;
   res->dims = calloc(res->nd, sizeof(size_t));
-  if (res->dims == NULL)
-    goto fail;
+  if (res->dims == NULL) goto fail;
   res->strides = strides_array(res->narray, res->nd);
-  if (res->strides == NULL)
-    goto fail;
+  if (res->strides == NULL) goto fail;
   res->k_basic = calloc(res->nd, sizeof(GpuKernel));
-  if (res->k_basic == NULL)
-    goto fail;
+  if (res->k_basic == NULL) goto fail;
 
   res->k_basic_32 = calloc(res->nd, sizeof(GpuKernel));
-  if (res->k_basic_32 == NULL)
-    goto fail;
+  if (res->k_basic_32 == NULL) goto fail;
 
   ret = gen_elemwise_contig_kernel(&res->k_contig, ctx,
 #ifdef DEBUG
@@ -635,13 +621,11 @@ GpuElemwise *GpuElemwise_new(gpucontext *ctx,
 #else
                                    NULL,
 #endif
-                                   res->preamble, res->expr,
-                                   res->n, res->args,
+                                   res->preamble, res->expr, res->n, res->args,
                                    (res->flags & GE_CONVERT_F16));
   if (ret != GA_NO_ERROR) {
 #ifdef DEBUG
-    if (errstr != NULL)
-      fprintf(stderr, "%s\n", errstr);
+    if (errstr != NULL) fprintf(stderr, "%s\n", errstr);
     free(errstr);
 #endif
     goto fail;
@@ -655,13 +639,11 @@ GpuElemwise *GpuElemwise_new(gpucontext *ctx,
 #else
                                       NULL,
 #endif
-                                      res->preamble, res->expr,
-                                      i+1, res->n, res->args,
-                                      (res->flags & GE_CONVERT_F16));
+                                      res->preamble, res->expr, i + 1, res->n,
+                                      res->args, (res->flags & GE_CONVERT_F16));
       if (ret != GA_NO_ERROR) {
 #ifdef DEBUG
-        if (errstr != NULL)
-          fprintf(stderr, "%s\n", errstr);
+        if (errstr != NULL) fprintf(stderr, "%s\n", errstr);
         free(errstr);
 #endif
         goto fail;
@@ -676,13 +658,12 @@ GpuElemwise *GpuElemwise_new(gpucontext *ctx,
 #else
                                     NULL,
 #endif
-                                    res->preamble, res->expr,
-                                    i+1, res->n, res->args,
+                                    res->preamble, res->expr, i + 1, res->n,
+                                    res->args,
                                     GEN_ADDR32 | (res->flags & GE_CONVERT_F16));
     if (ret != GA_NO_ERROR) {
 #ifdef DEBUG
-      if (errstr != NULL)
-        fprintf(stderr, "%s\n", errstr);
+      if (errstr != NULL) fprintf(stderr, "%s\n", errstr);
       free(errstr);
 #endif
       goto fail;
@@ -691,7 +672,7 @@ GpuElemwise *GpuElemwise_new(gpucontext *ctx,
 
   return res;
 
- fail:
+fail:
   GpuElemwise_free(res);
   return NULL;
 }
@@ -699,17 +680,14 @@ GpuElemwise *GpuElemwise_new(gpucontext *ctx,
 void GpuElemwise_free(GpuElemwise *ge) {
   unsigned int i;
   for (i = 0; i < ge->nd; i++) {
-    if (k_initialized(&ge->k_basic_32[i]))
-      GpuKernel_clear(&ge->k_basic_32[i]);
-    if (k_initialized(&ge->k_basic[i]))
-      GpuKernel_clear(&ge->k_basic[i]);
+    if (k_initialized(&ge->k_basic_32[i])) GpuKernel_clear(&ge->k_basic_32[i]);
+    if (k_initialized(&ge->k_basic[i])) GpuKernel_clear(&ge->k_basic[i]);
   }
   if (ge->strides != NULL)
     for (i = 0; i < ge->narray; i++) {
       free(ge->strides[i]);
     }
-  if (k_initialized(&ge->k_contig))
-    GpuKernel_clear(&ge->k_contig);
+  if (k_initialized(&ge->k_contig)) GpuKernel_clear(&ge->k_contig);
   free_args(ge->n, ge->args);
   free((void *)ge->preamble);
   free((void *)ge->expr);

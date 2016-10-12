@@ -1,8 +1,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "gpuarray/error.h"
 
-#include <string.h>
 #include <errno.h>
+#include <string.h>
 
 const char *gpuarray_error_str(int err) {
   switch (err) {

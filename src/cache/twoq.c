@@ -32,11 +32,9 @@ static inline void node_init(node *n, const cache_key_t k,
   n->temp = HOT;
 }
 
-static inline node *node_alloc(const cache_key_t key,
-                               const cache_value_t val) {
+static inline node *node_alloc(const cache_key_t key, const cache_value_t val) {
   node *res = malloc(sizeof(node));
-  if (res != NULL)
-    node_init(res, key, val);
+  if (res != NULL) node_init(res, key, val);
   return res;
 }
 
@@ -44,16 +42,13 @@ static inline void node_free(node *n, cache_freek_fn kfree,
                              cache_freev_fn vfree) {
   kfree(n->key);
   vfree(n->val);
-  if (n->h_next != NULL)
-    node_free(n->h_next, kfree, vfree);
+  if (n->h_next != NULL) node_free(n->h_next, kfree, vfree);
   free(n);
 }
 
 static inline void node_unlink(node *n) {
-  if (n->next != NULL)
-    n->next->prev = n->prev;
-  if (n->prev != NULL)
-    n->prev->next = n->next;
+  if (n->next != NULL) n->next->prev = n->prev;
+  if (n->prev != NULL) n->prev->next = n->next;
   n->next = NULL;
   n->prev = NULL;
 }
@@ -92,10 +87,8 @@ static inline node *list_pop(list *l) {
 }
 
 static inline node *list_remove(list *l, node *n) {
-  if (n == l->head)
-    l->head = n->next;
-  if (n == l->tail)
-    l->tail = n->prev;
+  if (n == l->head) l->head = n->next;
+  if (n == l->tail) l->tail = n->prev;
   node_unlink(n);
   l->size--;
   return n;
@@ -129,14 +122,13 @@ static inline size_t roundup2(size_t s) {
   s |= s >> 4;
   s |= s >> 8;
   s |= s >> 16;
-  if (sizeof(size_t) >= 8)
-    s |= s >> 32;
+  if (sizeof(size_t) >= 8) s |= s >> 32;
   s++;
   return s;
 }
 
 static inline int hash_init(hash *h, size_t size) {
-  h->nbuckets = roundup2(size + (size/6));
+  h->nbuckets = roundup2(size + (size / 6));
   h->keyval = calloc(h->nbuckets, sizeof(*h->keyval));
   if (h->keyval == NULL) {
     return -1;
@@ -149,8 +141,7 @@ static inline void hash_clear(hash *h, cache_freek_fn kfree,
                               cache_freev_fn vfree) {
   size_t i;
   for (i = 0; i < h->nbuckets; i++) {
-    if (h->keyval[i] != NULL)
-      node_free(h->keyval[i], kfree, vfree);
+    if (h->keyval[i] != NULL) node_free(h->keyval[i], kfree, vfree);
   }
   free(h->keyval);
   h->nbuckets = 0;
@@ -158,15 +149,14 @@ static inline void hash_clear(hash *h, cache_freek_fn kfree,
   h->keyval = NULL;
 }
 
-static inline node *hash_find(hash *h, const cache_key_t key,
-                              cache_eq_fn keq, cache_hash_fn khash) {
+static inline node *hash_find(hash *h, const cache_key_t key, cache_eq_fn keq,
+                              cache_hash_fn khash) {
   size_t p = khash(key) & (h->nbuckets - 1);
   node *n;
   if (h->keyval[p] != NULL) {
     n = h->keyval[p];
     do {
-      if (keq(n->key, key))
-        return n;
+      if (keq(n->key, key)) return n;
       n = n->h_next;
     } while (n != NULL);
   }
@@ -174,8 +164,7 @@ static inline node *hash_find(hash *h, const cache_key_t key,
 }
 
 static inline node *hash_add(hash *h, const cache_key_t key,
-                             const cache_value_t val,
-                             cache_hash_fn khash) {
+                             const cache_value_t val, cache_hash_fn khash) {
   size_t p = khash(key) & (h->nbuckets - 1);
   node *n = node_alloc(key, val);
   if (n == NULL) return NULL;
@@ -189,10 +178,8 @@ static inline node *hash_add(hash *h, const cache_key_t key,
   return n;
 }
 
-static inline void hash_del(hash *h, node *n,
-                            cache_freek_fn kfree,
-                            cache_freev_fn vfree,
-                            cache_hash_fn khash) {
+static inline void hash_del(hash *h, node *n, cache_freek_fn kfree,
+                            cache_freev_fn vfree, cache_hash_fn khash) {
   size_t p = khash(n->key) & (h->nbuckets - 1);
   node *np;
   if (n == h->keyval[p]) {
@@ -246,17 +233,10 @@ static int twoq_del(cache *_c, const cache_key_t k) {
   node *n = hash_find(&c->data, k, c->c.keq, c->c.khash);
   if (n != NULL) {
     switch (n->temp) {
-    case HOT:
-      list_remove(&c->hot, n);
-      break;
-    case WARM:
-      list_remove(&c->warm, n);
-      break;
-    case COLD:
-      list_remove(&c->cold, n);
-      break;
-    default:
-      assert(0 && "node temperature is not within expected values");
+    case HOT: list_remove(&c->hot, n); break;
+    case WARM: list_remove(&c->warm, n); break;
+    case COLD: list_remove(&c->cold, n); break;
+    default: assert(0 && "node temperature is not within expected values");
     }
     hash_del(&c->data, n, c->c.kfree, c->c.vfree, c->c.khash);
     return 1;
@@ -306,8 +286,7 @@ static cache_value_t twoq_get(cache *_c, const cache_key_t key) {
         list_push(&c->cold, nn);
       }
       break;
-    default:
-      assert(0 && "node temperature is not within expected values");
+    default: assert(0 && "node temperature is not within expected values");
     }
     return n->val;
   }
@@ -322,16 +301,15 @@ static void twoq_destroy(cache *_c) {
 }
 
 cache *cache_twoq(size_t hot_size, size_t warm_size, size_t cold_size,
-                 size_t elasticity, cache_eq_fn keq, cache_hash_fn khash,
-                 cache_freek_fn kfree, cache_freev_fn vfree) {
+                  size_t elasticity, cache_eq_fn keq, cache_hash_fn khash,
+                  cache_freek_fn kfree, cache_freev_fn vfree) {
   twoq_cache *res;
-  if (hot_size == 0 || warm_size == 0 || cold_size == 0)
-    return NULL;
+  if (hot_size == 0 || warm_size == 0 || cold_size == 0) return NULL;
 
   res = malloc(sizeof(*res));
   if (res == NULL) return NULL;
 
-  if (hash_init(&res->data, hot_size+warm_size+cold_size+elasticity)) {
+  if (hash_init(&res->data, hot_size + warm_size + cold_size + elasticity)) {
     free(res);
     return NULL;
   }

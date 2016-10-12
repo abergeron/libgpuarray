@@ -4,12 +4,12 @@
 #endif
 
 #include <assert.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stddef.h>
-#include "gpuarray/config.h"
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include "gpuarray/config.h"
 
 #include "private.h"
 #include "gpuarray/array.h"
@@ -17,83 +17,39 @@
 #include "gpuarray/kernel.h"
 #include "gpuarray/util.h"
 
-#include "util/strb.h"
 #include "util/integerfactoring.h"
-
+#include "util/strb.h"
 
 /* Datatypes */
-struct maxandargmax_ctx{
-	/* Function Arguments. */
-	GpuArray*       dstMax;
-	GpuArray*       dstArgmax;
-	const GpuArray* src;
-	unsigned        reduxLen;
-	const unsigned* reduxList;
-	
-	/* General. */
-	int             ret;
-	unsigned*       axisList;
-	gpucontext*     gpuCtx;
-	
-	/* Source code Generator. */
-	const char*     dstMaxType;
-	const char*     dstArgmaxType;
-	unsigned        ndd;
-	unsigned        ndr;
-	unsigned        nds;
-	unsigned        ndh;
-	strb            s;
-	char*           sourceCode;
-	GpuKernel       kernel;
-	
-	/* Scheduler */
-	unsigned        hwAxisList[3];
-	size_t          blockSize [3];
-	size_t          gridSize  [3];
-	size_t          chunkSize [3];
-	
-	/* Invoker */
-	gpudata*        srcStepsGD;
-	gpudata*        srcSizeGD;
-	gpudata*        chunkSizeGD;
-	gpudata*        dstMaxStepsGD;
-	gpudata*        dstArgmaxStepsGD;
-};
-typedef struct maxandargmax_ctx maxandargmax_ctx;
+struct maxandargmax_ctx {
+  /* Function Arguments. */
+  GpuArray *dstMax;
+  GpuArray *dstArgmax;
+  const GpuArray *src;
+  unsigned reduxLen;
+  const unsigned *reduxList;
 
+  /* General. */
+  int ret;
+  unsigned *axisList;
+  gpucontext *gpuCtx;
 
+  /* Source code Generator. */
+  const char *dstMaxType;
+  const char *dstArgmaxType;
+  unsigned ndd;
+  unsigned ndr;
+  unsigned nds;
+  unsigned ndh;
+  strb s;
+  char *sourceCode;
+  GpuKernel kernel;
 
-/* Function prototypes */
-static int   axisInSet                          (unsigned           v,
-                                                 const unsigned*    set,
-                                                 size_t             setLen,
-                                                 size_t*            where);
-static void  appendIdxes                        (strb*              s,
-                                                 const char*        prologue,
-                                                 const char*        prefix,
-                                                 int                startIdx,
-                                                 int                endIdx,
-                                                 const char*        suffix,
-                                                 const char*        epilogue);
-static int   maxandargmaxCheckargs              (maxandargmax_ctx*  ctx);
-static int   maxandargmaxSelectHwAxes           (maxandargmax_ctx*  ctx);
-static int   maxandargmaxGenSource              (maxandargmax_ctx*  ctx);
-static void  maxandargmaxAppendKernel           (maxandargmax_ctx*  ctx);
-static void  maxandargmaxAppendTypedefs         (maxandargmax_ctx*  ctx);
-static void  maxandargmaxAppendPrototype        (maxandargmax_ctx*  ctx);
-static void  maxandargmaxAppendOffsets          (maxandargmax_ctx*  ctx);
-static void  maxandargmaxAppendIndexDeclarations(maxandargmax_ctx*  ctx);
-static void  maxandargmaxAppendRangeCalculations(maxandargmax_ctx*  ctx);
-static void  maxandargmaxAppendLoops            (maxandargmax_ctx*  ctx);
-static void  maxandargmaxAppendLoopMacroDefs    (maxandargmax_ctx*  ctx);
-static void  maxandargmaxAppendLoopOuter        (maxandargmax_ctx*  ctx);
-static void  maxandargmaxAppendLoopInner        (maxandargmax_ctx*  ctx);
-static void  maxandargmaxAppendLoopMacroUndefs  (maxandargmax_ctx*  ctx);
-static void  maxandargmaxComputeAxisList        (maxandargmax_ctx*  ctx);
-static int   maxandargmaxCompile                (maxandargmax_ctx*  ctx);
-static int   maxandargmaxSchedule               (maxandargmax_ctx*  ctx);
-static int   maxandargmaxInvoke                 (maxandargmax_ctx*  ctx);
-static int   maxandargmaxCleanup                (maxandargmax_ctx*  ctx);
+  /* Scheduler */
+  unsigned hwAxisList[3];
+  size_t blockSize[3];
+  size_t gridSize[3];
+  size_t chunkSize[3];
 
 
 /* Function implementation */

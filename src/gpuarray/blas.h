@@ -1,8 +1,8 @@
 #ifndef GPUARRAY_BLAS_H
 #define GPUARRAY_BLAS_H
 
-#include <gpuarray/buffer_blas.h>
 #include <gpuarray/array.h>
+#include <gpuarray/buffer_blas.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,9 +25,11 @@ GPUARRAY_PUBLIC int GpuArray_rger(double alpha, GpuArray *X, GpuArray *Y,
 #define GpuArray_hger GpuArray_rger
 #define GpuArray_sger GpuArray_rger
 #define GpuArray_dger GpuArray_rger
-GPUARRAY_PUBLIC int GpuArray_rgemmBatch_3d(cb_transpose transA, cb_transpose transB,
-                                           double alpha, GpuArray *A, GpuArray *B,
-                                           double beta, GpuArray *C, int nocopy);
+GPUARRAY_PUBLIC int GpuArray_rgemmBatch_3d(cb_transpose transA,
+                                           cb_transpose transB, double alpha,
+                                           GpuArray *A, GpuArray *B,
+                                           double beta, GpuArray *C,
+                                           int nocopy);
 #define GpuArray_sgemmBatch_3d GpuArray_rgemmBatch_3d
 #define GpuArray_dgemmBatch_3d GpuArray_rgemmBatch_3d
 

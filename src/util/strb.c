@@ -1,12 +1,15 @@
 
-#include <stdarg.h>
 #include "util/strb.h"
+#include <stdarg.h>
 
 strb *strb_alloc(size_t i) {
   strb *res = malloc(sizeof(strb));
   if (res == NULL) return NULL;
   res->s = malloc(i);
-  if (res->s == NULL) { free(res); return NULL; }
+  if (res->s == NULL) {
+    free(res);
+    return NULL;
+  }
   res->a = i;
   res->l = 0;
   return res;
@@ -23,7 +26,10 @@ int strb_grow(strb *sb, size_t n) {
   if (sb->a == 0 && n < 1024) n = 1024;
   if (sb->a > n) n = sb->a;
   /* overflow */
-  if (SIZE_MAX - sb->a < n) { strb_seterror(sb); return -1; }
+  if (SIZE_MAX - sb->a < n) {
+    strb_seterror(sb);
+    return -1;
+  }
   s = realloc(sb->s, sb->a + n);
   if (s == NULL) {
     strb_seterror(sb);
@@ -46,12 +52,15 @@ void strb_appendf(strb *sb, const char *f, ...) {
 #endif
   va_end(ap);
 
-  if (s < 0) { strb_seterror(sb); return; }
+  if (s < 0) {
+    strb_seterror(sb);
+    return;
+  }
   s += 1;
-  
+
   if (strb_ensure(sb, s)) return;
   va_start(ap, f);
-  s = vsnprintf(sb->s+sb->l, s, f, ap);
+  s = vsnprintf(sb->s + sb->l, s, f, ap);
   va_end(ap);
   sb->l += s;
 }

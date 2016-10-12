@@ -98,8 +98,8 @@ GPUARRAY_PUBLIC int gpuarray_type_flagsa(unsigned int n, gpuelemwise_arg *arg);
  *
  */
 GPUARRAY_PUBLIC void gpuarray_elemwise_collapse(unsigned int n,
-                                                unsigned int *nd,
-                                                size_t *dim, ssize_t **strs);
+                                                unsigned int *nd, size_t *dim,
+                                                ssize_t **strs);
 
 #ifdef __cplusplus
 }

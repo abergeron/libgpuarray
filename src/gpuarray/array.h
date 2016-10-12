@@ -57,40 +57,40 @@ typedef struct _GpuArray {
  * \defgroup aflags Array Flags
  * @{
  */
-  /* Try to keep in sync with numpy values for now */
-  /**
+/* Try to keep in sync with numpy values for now */
+/**
    * Array is C-contiguous.
    */
-#define GA_C_CONTIGUOUS   0x0001
-  /**
+#define GA_C_CONTIGUOUS 0x0001
+/**
    * Array is Fortran-contiguous.
    */
-#define GA_F_CONTIGUOUS   0x0002
-  /**
+#define GA_F_CONTIGUOUS 0x0002
+/**
    * Buffer data is properly aligned for the type.  This should always
    * be true for arrays allocated through this library.
    *
    * If this isn't true you can't use kernels on the data, since they
    * require aligned access.
    */
-#define GA_ALIGNED        0x0100
-  /**
+#define GA_ALIGNED 0x0100
+/**
    * Can write to the data buffer.  (This is always true for arrays
    * allocated through this library).
    */
-#define GA_WRITEABLE      0x0400
-  /**
+#define GA_WRITEABLE 0x0400
+/**
    * Array data is behaved (properly aligned and writable).
    */
-#define GA_BEHAVED        (GA_ALIGNED|GA_WRITEABLE)
-  /**
+#define GA_BEHAVED (GA_ALIGNED | GA_WRITEABLE)
+/**
    * Array layout is that of a C array.
    */
-#define GA_CARRAY         (GA_C_CONTIGUOUS|GA_BEHAVED)
-  /**
+#define GA_CARRAY (GA_C_CONTIGUOUS | GA_BEHAVED)
+/**
    * Array layout is that of a Fortran array.
    */
-#define GA_FARRAY         (GA_F_CONTIGUOUS|GA_BEHAVED)
+#define GA_FARRAY (GA_F_CONTIGUOUS | GA_BEHAVED)
   /**
    * @}
    */
@@ -112,15 +112,15 @@ typedef enum _ga_order {
   /**
    * Any order is fine.
    */
-  GA_ANY_ORDER=-1,
+  GA_ANY_ORDER = -1,
   /**
    * C order is desired.
    */
-  GA_C_ORDER=0,
+  GA_C_ORDER = 0,
   /**
    * Fortran order is desired.
    */
-  GA_F_ORDER=1
+  GA_F_ORDER = 1
 } ga_order;
 
 /**
@@ -159,7 +159,8 @@ static inline int GpuArray_CHKFLAGS(const GpuArray *a, int flags) {
  *
  * \returns true if the data area of `a` is contiguous
  */
-#define GpuArray_ISONESEGMENT(a) ((a)->flags & (GA_C_CONTIGUOUS|GA_F_CONTIGUOUS))
+#define GpuArray_ISONESEGMENT(a) \
+  ((a)->flags & (GA_C_CONTIGUOUS | GA_F_CONTIGUOUS))
 /**
  * Checks if the array elements are c contiguous in memory.
  *
@@ -260,14 +261,13 @@ GPUARRAY_PUBLIC int GpuArray_zeros(GpuArray *a, gpucontext *ctx, int typecode,
  * properly initialized. Any other error code means that the structure
  * is left uninitialized and the provided buffer is deallocated.
  */
-GPUARRAY_PUBLIC int GpuArray_fromdata(GpuArray *a,
-                                      gpudata *data, size_t offset,
+GPUARRAY_PUBLIC int GpuArray_fromdata(GpuArray *a, gpudata *data, size_t offset,
                                       int typecode, unsigned int nd,
                                       const size_t *dims,
                                       const ssize_t *strides, int writeable);
 
-GPUARRAY_PUBLIC int GpuArray_copy_from_host(GpuArray *a,
-                                            gpucontext *ctx, void *buf, int typecode,
+GPUARRAY_PUBLIC int GpuArray_copy_from_host(GpuArray *a, gpucontext *ctx,
+                                            void *buf, int typecode,
                                             unsigned int nd, const size_t *dims,
                                             const ssize_t *strides);
 
@@ -322,12 +322,12 @@ GPUARRAY_PUBLIC int GpuArray_sync(GpuArray *a);
  * \return an error code otherwise
  */
 GPUARRAY_PUBLIC int GpuArray_index(GpuArray *r, const GpuArray *a,
-                                  const ssize_t *starts, const ssize_t *stops,
-                                  const ssize_t *steps);
+                                   const ssize_t *starts, const ssize_t *stops,
+                                   const ssize_t *steps);
 
 GPUARRAY_PUBLIC int GpuArray_index_inplace(GpuArray *a, const ssize_t *starts,
-                                          const ssize_t *stops,
-                                          const ssize_t *steps);
+                                           const ssize_t *stops,
+                                           const ssize_t *steps);
 
 /**
  * Take a portion of an array along axis 0.
@@ -418,10 +418,10 @@ GPUARRAY_PUBLIC int GpuArray_reshape_inplace(GpuArray *a, unsigned int nd,
  * \return an error code otherwise
  */
 GPUARRAY_PUBLIC int GpuArray_transpose(GpuArray *res, const GpuArray *a,
-                                      const unsigned int *new_axes);
+                                       const unsigned int *new_axes);
 
 GPUARRAY_PUBLIC int GpuArray_transpose_inplace(GpuArray *a,
-                                              const unsigned int *new_axes);
+                                               const unsigned int *new_axes);
 
 /**
  * Release all device and host memory associated with `a`.
@@ -518,7 +518,7 @@ GPUARRAY_PUBLIC int GpuArray_memset(GpuArray *a, int data);
  * \return an error code otherwise
  */
 GPUARRAY_PUBLIC int GpuArray_copy(GpuArray *res, const GpuArray *a,
-                                 ga_order order);
+                                  ga_order order);
 
 /**
  * Copy between arrays in different contexts.
@@ -640,11 +640,10 @@ GPUARRAY_PUBLIC int GpuArray_fdump(FILE *fd, const GpuArray *a);
  *         code otherwise.
  */
 
-GPUARRAY_PUBLIC int GpuArray_maxandargmax(GpuArray*       dstMax,
-                                          GpuArray*       dstArgmax,
-                                          const GpuArray* src,
-                                          unsigned        reduxLen,
-                                          const unsigned* reduxList);
+GPUARRAY_PUBLIC int GpuArray_maxandargmax(GpuArray *dstMax, GpuArray *dstArgmax,
+                                          const GpuArray *src,
+                                          unsigned reduxLen,
+                                          const unsigned *reduxList);
 
 #ifdef __cplusplus
 }

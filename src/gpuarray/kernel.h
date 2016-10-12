@@ -4,8 +4,8 @@
  *  \brief Kernel functions.
  */
 
-#include <gpuarray/buffer.h>
 #include <gpuarray/array.h>
+#include <gpuarray/buffer.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -71,7 +71,6 @@ GPUARRAY_PUBLIC void GpuKernel_clear(GpuKernel *k);
  */
 GPUARRAY_PUBLIC gpucontext *GpuKernel_context(GpuKernel *k);
 
-
 GPUARRAY_PUBLIC int GpuKernel_setarg(GpuKernel *k, unsigned int i, void *val);
 
 /**
@@ -90,8 +89,8 @@ GPUARRAY_PUBLIC int GpuKernel_setarg(GpuKernel *k, unsigned int i, void *val);
  * \param ls local size (in/out)
  * \param gs grid size (in/out)
  */
-GPUARRAY_PUBLIC int GpuKernel_sched(GpuKernel *k, size_t n,
-                                    size_t *ls, size_t *gs);
+GPUARRAY_PUBLIC int GpuKernel_sched(GpuKernel *k, size_t n, size_t *ls,
+                                    size_t *gs);
 
 /**
  * Launch the execution of a kernel.
@@ -108,7 +107,7 @@ GPUARRAY_PUBLIC int GpuKernel_call(GpuKernel *k, unsigned int n,
                                    size_t shared, void **args);
 
 GPUARRAY_PUBLIC int GpuKernel_binary(const GpuKernel *k, size_t *sz,
-                                    void **obj);
+                                     void **obj);
 
 GPUARRAY_PUBLIC const char *GpuKernel_error(const GpuKernel *k, int err);
 

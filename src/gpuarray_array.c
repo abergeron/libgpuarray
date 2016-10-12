@@ -8,9 +8,9 @@
 #if _MSC_VER < 1600
 #include <stdint.h>
 #endif
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include "private.h"
 #include "gpuarray/array.h"
@@ -46,14 +46,12 @@ static int ga_extcopy(GpuArray *dst, const GpuArray *src) {
   GpuElemwise *k = NULL;
   void *args[2];
 
-  if (ctx != gpudata_context(src->data))
-    return GA_INVALID_ERROR;
+  if (ctx != gpudata_context(src->data)) return GA_INVALID_ERROR;
 
   a.itype = src->typecode;
   a.otype = dst->typecode;
 
-  if (ctx->extcopy_cache != NULL)
-    k = cache_get(ctx->extcopy_cache, &a);
+  if (ctx->extcopy_cache != NULL) k = cache_get(ctx->extcopy_cache, &a);
   if (k == NULL) {
     gpuelemwise_arg gargs[2];
     gargs[0].name = "src";
@@ -63,21 +61,18 @@ static int ga_extcopy(GpuArray *dst, const GpuArray *src) {
     gargs[1].typecode = dst->typecode;
     gargs[1].flags = GE_WRITE;
     k = GpuElemwise_new(ctx, "", "dst = src", 2, gargs, 0, 0);
-    if (k == NULL)
-      return GA_MISC_ERROR;
+    if (k == NULL) return GA_MISC_ERROR;
     aa = memdup(&a, sizeof(a));
     if (aa == NULL) {
       GpuElemwise_free(k);
       return GA_MEMORY_ERROR;
     }
     if (ctx->extcopy_cache == NULL)
-      ctx->extcopy_cache = cache_twoq(4, 8, 8, 2, extcopy_eq, extcopy_hash,
-                                      extcopy_free,
-                                      (cache_freev_fn)GpuElemwise_free);
-    if (ctx->extcopy_cache == NULL)
-      return GA_MISC_ERROR;
-    if (cache_add(ctx->extcopy_cache, aa, k) != 0)
-      return GA_MISC_ERROR;
+      ctx->extcopy_cache =
+          cache_twoq(4, 8, 8, 2, extcopy_eq, extcopy_hash, extcopy_free,
+                     (cache_freev_fn)GpuElemwise_free);
+    if (ctx->extcopy_cache == NULL) return GA_MISC_ERROR;
+    if (cache_add(ctx->extcopy_cache, aa, k) != 0) return GA_MISC_ERROR;
   }
   args[0] = (void *)src;
   args[1] = (void *)dst;
@@ -87,24 +82,21 @@ static int ga_extcopy(GpuArray *dst, const GpuArray *src) {
 /* Value below which a size_t multiplication will never overflow. */
 #define MUL_NO_OVERFLOW (1UL << (sizeof(size_t) * 4))
 
-int GpuArray_empty(GpuArray *a, gpucontext *ctx,
-		   int typecode, unsigned int nd, const size_t *dims,
-                   ga_order ord) {
+int GpuArray_empty(GpuArray *a, gpucontext *ctx, int typecode, unsigned int nd,
+                   const size_t *dims, ga_order ord) {
   size_t size = gpuarray_get_elsize(typecode);
   unsigned int i;
   int res = GA_NO_ERROR;
 
-  if (ord == GA_ANY_ORDER)
-    ord = GA_C_ORDER;
+  if (ord == GA_ANY_ORDER) ord = GA_C_ORDER;
 
-  if (ord != GA_C_ORDER && ord != GA_F_ORDER)
-    return GA_VALUE_ERROR;
+  if (ord != GA_C_ORDER && ord != GA_F_ORDER) return GA_VALUE_ERROR;
 
   for (i = 0; i < nd; i++) {
     size_t d = dims[i];
     /* Check for overflow */
-    if ((d >= MUL_NO_OVERFLOW || size >= MUL_NO_OVERFLOW) &&
-	d > 0 && SIZE_MAX / d < size)
+    if ((d >= MUL_NO_OVERFLOW || size >= MUL_NO_OVERFLOW) && d > 0 &&
+        SIZE_MAX / d < size)
       return GA_VALUE_ERROR;
     size *= d;
   }
@@ -123,15 +115,15 @@ int GpuArray_empty(GpuArray *a, gpucontext *ctx,
     return GA_MEMORY_ERROR;
   }
   /* Mult will not overflow since calloc succeded */
-  memcpy(a->dimensions, dims, sizeof(size_t)*nd);
+  memcpy(a->dimensions, dims, sizeof(size_t) * nd);
 
   size = gpuarray_get_elsize(typecode);
   /* mults will not overflow, checked on entry */
   switch (ord) {
   case GA_C_ORDER:
     for (i = nd; i > 0; i--) {
-      a->strides[i-1] = size;
-      size *= a->dimensions[i-1];
+      a->strides[i - 1] = size;
+      size *= a->dimensions[i - 1];
     }
     a->flags |= GA_C_CONTIGUOUS;
     break;
@@ -146,19 +138,16 @@ int GpuArray_empty(GpuArray *a, gpucontext *ctx,
     assert(0); /* cannot be reached */
   }
 
-  if (a->nd <= 1)
-    a->flags |= GA_F_CONTIGUOUS|GA_C_CONTIGUOUS;
+  if (a->nd <= 1) a->flags |= GA_F_CONTIGUOUS | GA_C_CONTIGUOUS;
 
   return GA_NO_ERROR;
 }
 
-int GpuArray_zeros(GpuArray *a, gpucontext *ctx,
-                   int typecode, unsigned int nd, const size_t *dims,
-                   ga_order ord) {
+int GpuArray_zeros(GpuArray *a, gpucontext *ctx, int typecode, unsigned int nd,
+                   const size_t *dims, ga_order ord) {
   int err;
   err = GpuArray_empty(a, ctx, typecode, nd, dims, ord);
-  if (err != GA_NO_ERROR)
-    return err;
+  if (err != GA_NO_ERROR) return err;
   err = gpudata_memset(a->data, a->offset, 0);
   if (err != GA_NO_ERROR) {
     GpuArray_clear(a);
@@ -169,8 +158,7 @@ int GpuArray_zeros(GpuArray *a, gpucontext *ctx,
 int GpuArray_fromdata(GpuArray *a, gpudata *data, size_t offset, int typecode,
                       unsigned int nd, const size_t *dims,
                       const ssize_t *strides, int writeable) {
-  if (gpuarray_get_type(typecode)->typecode != typecode)
-    return GA_VALUE_ERROR;
+  if (gpuarray_get_type(typecode)->typecode != typecode) return GA_VALUE_ERROR;
   assert(data != NULL);
   a->data = data;
   gpudata_retain(a->data);
@@ -184,8 +172,8 @@ int GpuArray_fromdata(GpuArray *a, gpudata *data, size_t offset, int typecode,
     GpuArray_clear(a);
     return GA_MEMORY_ERROR;
   }
-  memcpy(a->dimensions, dims, nd*sizeof(size_t));
-  memcpy(a->strides, strides, nd*sizeof(ssize_t));
+  memcpy(a->dimensions, dims, nd * sizeof(size_t));
+  memcpy(a->strides, strides, nd * sizeof(ssize_t));
 
   if (GpuArray_is_c_contiguous(a)) a->flags |= GA_C_CONTIGUOUS;
   if (GpuArray_is_f_contiguous(a)) a->flags |= GA_F_CONTIGUOUS;
@@ -212,9 +200,9 @@ int GpuArray_copy_from_host(GpuArray *a, gpucontext *ctx, void *buf,
     }
 
     if (strides[i] < 0)
-      base += (dims[i]-1) * strides[i];
+      base += (dims[i] - 1) * strides[i];
     else
-      size += (dims[i]-1) * strides[i];
+      size += (dims[i] - 1) * strides[i];
   }
   offset = (char *)buf - base;
   size += offset;
@@ -240,8 +228,8 @@ int GpuArray_view(GpuArray *v, const GpuArray *a) {
     GpuArray_clear(v);
     return GA_MEMORY_ERROR;
   }
-  memcpy(v->dimensions, a->dimensions, v->nd*sizeof(size_t));
-  memcpy(v->strides, a->strides, v->nd*sizeof(ssize_t));
+  memcpy(v->dimensions, a->dimensions, v->nd * sizeof(size_t));
+  memcpy(v->strides, a->strides, v->nd * sizeof(ssize_t));
   return GA_NO_ERROR;
 }
 
@@ -273,30 +261,30 @@ int GpuArray_index_inplace(GpuArray *a, const ssize_t *starts,
 
   new_i = 0;
   for (i = 0; i < a->nd; i++) {
-    if (starts[i] < -1 || (starts[i] > 0 &&
-			   (size_t)starts[i] > a->dimensions[i])) {
+    if (starts[i] < -1 ||
+        (starts[i] > 0 && (size_t)starts[i] > a->dimensions[i])) {
       free(newdims);
       free(newstrs);
       return GA_VALUE_ERROR;
     }
-    if (steps[i] == 0 &&
-	(starts[i] == -1 || starts[i] >= a->dimensions[i])) {
+    if (steps[i] == 0 && (starts[i] == -1 || starts[i] >= a->dimensions[i])) {
       free(newdims);
       free(newstrs);
       return GA_VALUE_ERROR;
     }
     new_offset += starts[i] * a->strides[i];
     if (steps[i] != 0) {
-      if ((stops[i] < -1 || (stops[i] > 0 &&
-			      (size_t)stops[i] > a->dimensions[i])) ||
-	  (stops[i]-starts[i])/steps[i] < 0) {
+      if ((stops[i] < -1 ||
+           (stops[i] > 0 && (size_t)stops[i] > a->dimensions[i])) ||
+          (stops[i] - starts[i]) / steps[i] < 0) {
         free(newdims);
         free(newstrs);
-	return GA_VALUE_ERROR;
+        return GA_VALUE_ERROR;
       }
       newstrs[new_i] = steps[i] * a->strides[i];
-      newdims[new_i] = (stops[i]-starts[i]+steps[i]-
-                        (steps[i] < 0? -1 : 1))/steps[i];
+      newdims[new_i] =
+          (stops[i] - starts[i] + steps[i] - (steps[i] < 0 ? -1 : 1)) /
+          steps[i];
       new_i++;
     }
   }
@@ -333,8 +321,8 @@ int GpuArray_index(GpuArray *r, const GpuArray *a, const ssize_t *starts,
 }
 
 static int gen_take1_kernel(GpuKernel *k, gpucontext *ctx, char **err_str,
-                            GpuArray *a, const GpuArray *v,
-                            const GpuArray *ind, int addr32) {
+                            GpuArray *a, const GpuArray *v, const GpuArray *ind,
+                            int addr32) {
   strb sb = STRB_STATIC_INIT;
   int *atypes;
   size_t nargs, apos;
@@ -346,8 +334,7 @@ static int gen_take1_kernel(GpuKernel *k, gpucontext *ctx, char **err_str,
   nargs = 7 + 2 * v->nd;
 
   atypes = calloc(nargs, sizeof(int));
-  if (atypes == NULL)
-    return GA_MEMORY_ERROR;
+  if (atypes == NULL) return GA_MEMORY_ERROR;
 
   if (addr32) {
     sz = "ga_uint";
@@ -359,7 +346,7 @@ static int gen_take1_kernel(GpuKernel *k, gpucontext *ctx, char **err_str,
 
   apos = 0;
   strb_appendf(&sb, "KERNEL void take1(GLOBAL_MEM %s *r, "
-               "GLOBAL_MEM const %s *v, ga_size off,",
+                    "GLOBAL_MEM const %s *v, ga_size off,",
                gpuarray_get_type(a->typecode)->cluda_name,
                gpuarray_get_type(v->typecode)->cluda_name);
   atypes[apos++] = GA_BUFFER;
@@ -371,7 +358,7 @@ static int gen_take1_kernel(GpuKernel *k, gpucontext *ctx, char **err_str,
     atypes[apos++] = GA_SIZE;
   }
   strb_appendf(&sb, " GLOBAL_MEM const %s *ind, ga_size n0, ga_size n1,"
-               " GLOBAL_MEM int* err) {\n",
+                    " GLOBAL_MEM int* err) {\n",
                gpuarray_get_type(ind->typecode)->cluda_name);
   atypes[apos++] = GA_BUFFER;
   atypes[apos++] = GA_SIZE;
@@ -379,45 +366,49 @@ static int gen_take1_kernel(GpuKernel *k, gpucontext *ctx, char **err_str,
   atypes[apos++] = GA_BUFFER;
   assert(apos == nargs);
   strb_appendf(&sb, "  const %s idx0 = LDIM_0 * GID_0 + LID_0;\n"
-               "  const %s numThreads0 = LDIM_0 * GDIM_0;\n"
-               "  const %s idx1 = LDIM_1 * GID_1 + LID_1;\n"
-               "  const %s numThreads1 = LDIM_1 * GDIM_1;\n"
-               "  %s i0, i1;\n", sz, sz, sz, sz, sz);
+                    "  const %s numThreads0 = LDIM_0 * GDIM_0;\n"
+                    "  const %s idx1 = LDIM_1 * GID_1 + LID_1;\n"
+                    "  const %s numThreads1 = LDIM_1 * GDIM_1;\n"
+                    "  %s i0, i1;\n",
+               sz, sz, sz, sz, sz);
   strb_appendf(&sb, "  for (i0 = idx0; i0 < n0; i0 += numThreads0) {\n"
-               "    %s ii0 = ind[i0];\n"
-               "    %s pos0 = off;\n"
-               "    if (ii0 < 0) ii0 += d0;\n"
-               "    if ((ii0 < 0) || (ii0 >= d0)) {\n"
-               "      *err = -1;\n"
-               "      continue;\n"
-               "    }\n"
-               "    pos0 += ii0 * (%s)s0;\n"
-               "    for (i1 = idx1; i1 < n1; i1 += numThreads1) {\n"
-               "      %s p = pos0;\n", ssz, sz, sz, sz);
+                    "    %s ii0 = ind[i0];\n"
+                    "    %s pos0 = off;\n"
+                    "    if (ii0 < 0) ii0 += d0;\n"
+                    "    if ((ii0 < 0) || (ii0 >= d0)) {\n"
+                    "      *err = -1;\n"
+                    "      continue;\n"
+                    "    }\n"
+                    "    pos0 += ii0 * (%s)s0;\n"
+                    "    for (i1 = idx1; i1 < n1; i1 += numThreads1) {\n"
+                    "      %s p = pos0;\n",
+               ssz, sz, sz, sz);
   if (v->nd > 1) {
     strb_appendf(&sb, "      %s pos, ii = i1;\n", sz);
     for (i2 = v->nd; i2 > 1; i2--) {
       i = i2 - 1;
       if (i > 1)
         strb_appendf(&sb, "      pos = ii %% (%s)d%u;\n"
-                     "      ii /= (%s)d%u;\n", sz, i, sz, i);
+                          "      ii /= (%s)d%u;\n",
+                     sz, i, sz, i);
       else
         strb_appends(&sb, "      pos = ii;\n");
       strb_appendf(&sb, "      p += pos * (%s)s%u;\n", ssz, i);
     }
   }
-  strb_appendf(&sb, "      r[i0*((%s)n1) + i1] = *((GLOBAL_MEM %s *)(((GLOBAL_MEM char *)v) + p));\n",
+  strb_appendf(&sb, "      r[i0*((%s)n1) + i1] = *((GLOBAL_MEM %s "
+                    "*)(((GLOBAL_MEM char *)v) + p));\n",
                sz, gpuarray_get_type(v->typecode)->cluda_name);
   strb_appends(&sb, "    }\n"
-               "  }\n"
-               "}\n");
+                    "  }\n"
+                    "}\n");
   if (strb_error(&sb)) {
     res = GA_MEMORY_ERROR;
     goto bail;
   }
   flags |= gpuarray_type_flags(a->typecode, v->typecode, GA_BYTE, -1);
-  res = GpuKernel_init(k, ctx, 1, (const char **)&sb.s, &sb.l, "take1",
-                       nargs, atypes, flags, err_str);
+  res = GpuKernel_init(k, ctx, 1, (const char **)&sb.s, &sb.l, "take1", nargs,
+                       atypes, flags, err_str);
 bail:
   free(atypes);
   strb_clear(&sb);
@@ -438,8 +429,7 @@ int GpuArray_take1(GpuArray *a, const GpuArray *v, const GpuArray *i,
   int err, kerr = 0;
   int addr32 = 0;
 
-  if (!GpuArray_ISWRITEABLE(a))
-    return GA_INVALID_ERROR;
+  if (!GpuArray_ISWRITEABLE(a)) return GA_INVALID_ERROR;
 
   if (!GpuArray_ISALIGNED(a) || !GpuArray_ISALIGNED(v) ||
       !GpuArray_ISALIGNED(i))
@@ -458,8 +448,7 @@ int GpuArray_take1(GpuArray *a, const GpuArray *v, const GpuArray *i,
   n[1] = 1;
 
   for (j = 1; j < v->nd; j++) {
-    if (a->dimensions[j] != v->dimensions[j])
-      return GA_INVALID_ERROR;
+    if (a->dimensions[j] != v->dimensions[j]) return GA_INVALID_ERROR;
     n[1] *= v->dimensions[j];
   }
 
@@ -468,8 +457,7 @@ int GpuArray_take1(GpuArray *a, const GpuArray *v, const GpuArray *i,
   }
 
   err = gpudata_property(v->data, GA_CTX_PROP_ERRBUF, &errbuf);
-  if (err != GA_NO_ERROR)
-    return err;
+  if (err != GA_NO_ERROR) return err;
 
   err = gen_take1_kernel(&k, GpuArray_context(a),
 #if DEBUG
@@ -484,12 +472,10 @@ int GpuArray_take1(GpuArray *a, const GpuArray *v, const GpuArray *i,
     free(errstr);
   }
 #endif
-  if (err != GA_NO_ERROR)
-    return err;
+  if (err != GA_NO_ERROR) return err;
 
-  err = GpuKernel_sched(&k, n[0]*n[1], &ls[1], &gs[1]);
-  if (err != GA_NO_ERROR)
-    goto out;
+  err = GpuKernel_sched(&k, n[0] * n[1], &ls[1], &gs[1]);
+  if (err != GA_NO_ERROR) goto out;
 
   /* This may not be the best scheduling, but it's good enough */
   err = gpukernel_property(k.k, GA_KERNEL_PROP_PREFLSIZE, &pl);
@@ -539,41 +525,37 @@ int GpuArray_setarray(GpuArray *a, const GpuArray *v) {
   int err = GA_NO_ERROR;
   int simple_move = 1;
 
-  if (a->nd < v->nd)
-    return GA_VALUE_ERROR;
+  if (a->nd < v->nd) return GA_VALUE_ERROR;
 
-  if (!GpuArray_ISWRITEABLE(a))
-    return GA_VALUE_ERROR;
+  if (!GpuArray_ISWRITEABLE(a)) return GA_VALUE_ERROR;
   if (!GpuArray_ISALIGNED(v) || !GpuArray_ISALIGNED(a))
     return GA_UNALIGNED_ERROR;
 
   off = a->nd - v->nd;
 
   for (i = 0; i < v->nd; i++) {
-    if (v->dimensions[i] != a->dimensions[i+off]) {
+    if (v->dimensions[i] != a->dimensions[i + off]) {
       if (v->dimensions[i] != 1)
-	return GA_VALUE_ERROR;
+        return GA_VALUE_ERROR;
       else
-	simple_move = 0;
+        simple_move = 0;
     }
   }
 
   if (simple_move && GpuArray_ISONESEGMENT(a) && GpuArray_ISONESEGMENT(v) &&
       GpuArray_ISFORTRAN(a) == GpuArray_ISFORTRAN(v) &&
-      a->typecode == v->typecode &&
-      a->nd == v->nd) {
+      a->typecode == v->typecode && a->nd == v->nd) {
     sz = gpuarray_get_elsize(a->typecode);
     for (i = 0; i < a->nd; i++) sz *= a->dimensions[i];
     return gpudata_move(a->data, a->offset, v->data, v->offset, sz);
   }
 
   strs = calloc(a->nd, sizeof(ssize_t));
-  if (strs == NULL)
-    return GA_MEMORY_ERROR;
+  if (strs == NULL) return GA_MEMORY_ERROR;
 
   for (i = off; i < a->nd; i++) {
-    if (v->dimensions[i-off] == a->dimensions[i]) {
-      strs[i] = v->strides[i-off];
+    if (v->dimensions[i - off] == a->dimensions[i]) {
+      strs[i] = v->strides[i - off];
     }
   }
 
@@ -582,8 +564,7 @@ int GpuArray_setarray(GpuArray *a, const GpuArray *v) {
   tv.dimensions = a->dimensions;
   tv.strides = strs;
   /* This could be optiomized by setting the right flags */
-  if (tv.nd != 0)
-    tv.flags &= ~(GA_C_CONTIGUOUS|GA_F_CONTIGUOUS);
+  if (tv.nd != 0) tv.flags &= ~(GA_C_CONTIGUOUS | GA_F_CONTIGUOUS);
   err = ga_extcopy(a, &tv);
   free(strs);
   return err;
@@ -630,8 +611,8 @@ int GpuArray_reshape_inplace(GpuArray *a, unsigned int nd,
   for (i = 0; i < nd; i++) {
     size_t d = newdims[i];
     /* Check for overflow */
-    if ((d >= MUL_NO_OVERFLOW || newsize >= MUL_NO_OVERFLOW) &&
-	d > 0 && SIZE_MAX / d < newsize)
+    if ((d >= MUL_NO_OVERFLOW || newsize >= MUL_NO_OVERFLOW) && d > 0 &&
+        SIZE_MAX / d < newsize)
       return GA_INVALID_ERROR;
     newsize *= d;
   }
@@ -646,8 +627,7 @@ int GpuArray_reshape_inplace(GpuArray *a, unsigned int nd,
   }
 
   newstrides = calloc(nd, sizeof(ssize_t));
-  if (newstrides == NULL)
-    return GA_MEMORY_ERROR;
+  if (newstrides == NULL) return GA_MEMORY_ERROR;
 
   while (ni < nd && oi < a->nd) {
     np = newdims[ni];
@@ -663,10 +643,10 @@ int GpuArray_reshape_inplace(GpuArray *a, unsigned int nd,
 
     for (ok = oi; ok < oj - 1; ok++) {
       if (ord == GA_F_ORDER) {
-        if (a->strides[ok+1] != a->dimensions[ok]*a->strides[ok])
+        if (a->strides[ok + 1] != a->dimensions[ok] * a->strides[ok])
           goto need_copy;
       } else {
-        if (a->strides[ok] != a->dimensions[ok+1]*a->strides[ok+1])
+        if (a->strides[ok] != a->dimensions[ok + 1] * a->strides[ok + 1])
           goto need_copy;
       }
     }
@@ -674,12 +654,12 @@ int GpuArray_reshape_inplace(GpuArray *a, unsigned int nd,
     if (ord == GA_F_ORDER) {
       newstrides[ni] = a->strides[oi];
       for (nk = ni + 1; nk < nj; nk++) {
-        newstrides[nk] = newstrides[nk - 1]*newdims[nk - 1];
+        newstrides[nk] = newstrides[nk - 1] * newdims[nk - 1];
       }
     } else {
-      newstrides[nj-1] = a->strides[oj-1];
-      for (nk = nj-1; nk > ni; nk--) {
-        newstrides[nk-1] = newstrides[nk]*newdims[nk];
+      newstrides[nj - 1] = a->strides[oj - 1];
+      for (nk = nj - 1; nk > ni; nk--) {
+        newstrides[nk - 1] = newstrides[nk] * newdims[nk];
       }
     }
     ni = nj++;
@@ -688,11 +668,11 @@ int GpuArray_reshape_inplace(GpuArray *a, unsigned int nd,
 
   /* Fixup trailing ones */
   if (ord == GA_F_ORDER) {
-    for (i = nj-1; i < nd; i++) {
-      newstrides[i] = newstrides[i-1] * newdims[i-1];
+    for (i = nj - 1; i < nd; i++) {
+      newstrides[i] = newstrides[i - 1] * newdims[i - 1];
     }
   } else {
-    for (i = nj-1; i < nd; i++) {
+    for (i = nj - 1; i < nd; i++) {
       newstrides[i] = gpuarray_get_elsize(a->typecode);
     }
   }
@@ -703,7 +683,7 @@ int GpuArray_reshape_inplace(GpuArray *a, unsigned int nd,
   if (tmpdims == NULL) {
     return GA_MEMORY_ERROR;
   }
-  memcpy(tmpdims, newdims, nd*sizeof(size_t));
+  memcpy(tmpdims, newdims, nd * sizeof(size_t));
   a->nd = nd;
   free(a->dimensions);
   free(a->strides);
@@ -711,11 +691,11 @@ int GpuArray_reshape_inplace(GpuArray *a, unsigned int nd,
   a->strides = newstrides;
 
   goto fix_flags;
- need_copy:
+need_copy:
   free(newstrides);
   return GA_COPY_ERROR;
 
- do_final_copy:
+do_final_copy:
   tmpdims = calloc(nd, sizeof(size_t));
   newstrides = calloc(nd, sizeof(ssize_t));
   if (tmpdims == NULL || newstrides == NULL) {
@@ -723,17 +703,17 @@ int GpuArray_reshape_inplace(GpuArray *a, unsigned int nd,
     free(newstrides);
     return GA_MEMORY_ERROR;
   }
-  memcpy(tmpdims, newdims, nd*sizeof(size_t));
+  memcpy(tmpdims, newdims, nd * sizeof(size_t));
   if (nd > 0) {
     if (ord == GA_F_ORDER) {
       newstrides[0] = gpuarray_get_elsize(a->typecode);
       for (i = 1; i < nd; i++) {
-        newstrides[i] = newstrides[i-1] * tmpdims[i-1];
+        newstrides[i] = newstrides[i - 1] * tmpdims[i - 1];
       }
     } else {
-      newstrides[nd-1] = gpuarray_get_elsize(a->typecode);
-      for (i = nd-1; i > 0; i--) {
-        newstrides[i-1] = newstrides[i] * tmpdims[i];
+      newstrides[nd - 1] = gpuarray_get_elsize(a->typecode);
+      for (i = nd - 1; i > 0; i--) {
+        newstrides[i - 1] = newstrides[i] * tmpdims[i];
       }
     }
   }
@@ -743,7 +723,7 @@ int GpuArray_reshape_inplace(GpuArray *a, unsigned int nd,
   a->dimensions = tmpdims;
   a->strides = newstrides;
 
- fix_flags:
+fix_flags:
   if (GpuArray_is_c_contiguous(a))
     a->flags |= GA_C_CONTIGUOUS;
   else
@@ -758,7 +738,6 @@ int GpuArray_reshape_inplace(GpuArray *a, unsigned int nd,
     a->flags &= ~GA_ALIGNED;
   return GA_NO_ERROR;
 }
-
 
 int GpuArray_transpose(GpuArray *res, const GpuArray *a,
                        const unsigned int *new_axes) {
@@ -807,18 +786,15 @@ int GpuArray_transpose_inplace(GpuArray *a, const unsigned int *new_axes) {
   a->dimensions = newdims;
   a->strides = newstrs;
 
-  a->flags &= ~(GA_C_CONTIGUOUS|GA_F_CONTIGUOUS);
-  if (GpuArray_is_c_contiguous(a))
-    a->flags |= GA_C_CONTIGUOUS;
-  if (GpuArray_is_f_contiguous(a))
-    a->flags |= GA_F_CONTIGUOUS;
+  a->flags &= ~(GA_C_CONTIGUOUS | GA_F_CONTIGUOUS);
+  if (GpuArray_is_c_contiguous(a)) a->flags |= GA_C_CONTIGUOUS;
+  if (GpuArray_is_f_contiguous(a)) a->flags |= GA_F_CONTIGUOUS;
 
   return GA_NO_ERROR;
 }
 
 void GpuArray_clear(GpuArray *a) {
-  if (a->data)
-    gpudata_release(a->data);
+  if (a->data) gpudata_release(a->data);
   free(a->dimensions);
   free(a->strides);
   memset(a, 0, sizeof(*a));
@@ -838,15 +814,12 @@ gpucontext *GpuArray_context(const GpuArray *a) {
 int GpuArray_move(GpuArray *dst, const GpuArray *src) {
   size_t sz;
   unsigned int i;
-  if (!GpuArray_ISWRITEABLE(dst))
-    return GA_VALUE_ERROR;
+  if (!GpuArray_ISWRITEABLE(dst)) return GA_VALUE_ERROR;
   if (!GpuArray_ISALIGNED(src) || !GpuArray_ISALIGNED(dst))
     return GA_UNALIGNED_ERROR;
-  if (src->nd != dst->nd)
-    return GA_VALUE_ERROR;
+  if (src->nd != dst->nd) return GA_VALUE_ERROR;
   for (i = 0; i < src->nd; i++) {
-    if (src->dimensions[i] != dst->dimensions[i])
-      return GA_VALUE_ERROR;
+    if (src->dimensions[i] != dst->dimensions[i]) return GA_VALUE_ERROR;
   }
   if (!GpuArray_ISONESEGMENT(dst) || !GpuArray_ISONESEGMENT(src) ||
       GpuArray_ISFORTRAN(dst) != GpuArray_ISFORTRAN(src) ||
@@ -859,33 +832,28 @@ int GpuArray_move(GpuArray *dst, const GpuArray *src) {
 }
 
 int GpuArray_write(GpuArray *dst, const void *src, size_t src_sz) {
-  if (!GpuArray_ISWRITEABLE(dst))
-    return GA_VALUE_ERROR;
-  if (!GpuArray_ISONESEGMENT(dst))
-    return GA_UNSUPPORTED_ERROR;
+  if (!GpuArray_ISWRITEABLE(dst)) return GA_VALUE_ERROR;
+  if (!GpuArray_ISONESEGMENT(dst)) return GA_UNSUPPORTED_ERROR;
   return gpudata_write(dst->data, dst->offset, src, src_sz);
 }
 
 int GpuArray_read(void *dst, size_t dst_sz, const GpuArray *src) {
-  if (!GpuArray_ISONESEGMENT(src))
-    return GA_UNSUPPORTED_ERROR;
+  if (!GpuArray_ISONESEGMENT(src)) return GA_UNSUPPORTED_ERROR;
   return gpudata_read(dst, src->data, src->offset, dst_sz);
 }
 
 int GpuArray_memset(GpuArray *a, int data) {
-  if (!GpuArray_ISONESEGMENT(a))
-    return GA_UNSUPPORTED_ERROR;
+  if (!GpuArray_ISONESEGMENT(a)) return GA_UNSUPPORTED_ERROR;
   return gpudata_memset(a->data, a->offset, data);
 }
 
 int GpuArray_copy(GpuArray *res, const GpuArray *a, ga_order order) {
   int err;
-  err = GpuArray_empty(res, GpuArray_context(a), a->typecode,
-                       a->nd, a->dimensions, order);
+  err = GpuArray_empty(res, GpuArray_context(a), a->typecode, a->nd,
+                       a->dimensions, order);
   if (err != GA_NO_ERROR) return err;
   err = GpuArray_move(res, a);
-  if (err != GA_NO_ERROR)
-    GpuArray_clear(res);
+  if (err != GA_NO_ERROR) GpuArray_clear(res);
   return err;
 }
 
@@ -893,18 +861,15 @@ int GpuArray_transfer(GpuArray *res, const GpuArray *a) {
   size_t sz;
   unsigned int i;
 
-  if (!GpuArray_ISONESEGMENT(res))
-    return GA_UNSUPPORTED_ERROR;
-  if (!GpuArray_ISONESEGMENT(a))
-    return GA_UNSUPPORTED_ERROR;
+  if (!GpuArray_ISONESEGMENT(res)) return GA_UNSUPPORTED_ERROR;
+  if (!GpuArray_ISONESEGMENT(a)) return GA_UNSUPPORTED_ERROR;
 
-  if (res->typecode != a->typecode)
-    return GA_UNSUPPORTED_ERROR;
+  if (res->typecode != a->typecode) return GA_UNSUPPORTED_ERROR;
 
   sz = gpuarray_get_elsize(a->typecode);
   for (i = 0; i < a->nd; i++) sz *= a->dimensions[i];
 
- return gpudata_transfer(res->data, res->offset, a->data, a->offset, sz);
+  return gpudata_transfer(res->data, res->offset, a->data, a->offset, sz);
 }
 
 int GpuArray_split(GpuArray **rs, const GpuArray *a, size_t n, size_t *p,
@@ -932,7 +897,7 @@ int GpuArray_split(GpuArray **rs, const GpuArray *a, size_t n, size_t *p,
 
   for (i = 0; i <= n; i++) {
     if (i > 0)
-      starts[axis] = p[i-1];
+      starts[axis] = p[i - 1];
     else
       starts[axis] = 0;
     if (i < n)
@@ -940,8 +905,7 @@ int GpuArray_split(GpuArray **rs, const GpuArray *a, size_t n, size_t *p,
     else
       stops[axis] = a->dimensions[axis];
     err = GpuArray_index(rs[i], a, starts, stops, steps);
-    if (err != GA_NO_ERROR)
-      break;
+    if (err != GA_NO_ERROR) break;
   }
 
   free(starts);
@@ -950,8 +914,7 @@ int GpuArray_split(GpuArray **rs, const GpuArray *a, size_t n, size_t *p,
 
   if (err != GA_NO_ERROR) {
     size_t ii;
-    for (ii = 0; ii < i; ii++)
-      GpuArray_clear(rs[ii]);
+    for (ii = 0; ii < i; ii++) GpuArray_clear(rs[ii]);
   }
   return err;
 }
@@ -964,12 +927,10 @@ int GpuArray_concatenate(GpuArray *r, const GpuArray **as, size_t n,
   int res_flags;
   int err = GA_NO_ERROR;
 
-  if (axis >= as[0]->nd)
-    return GA_VALUE_ERROR;
+  if (axis >= as[0]->nd) return GA_VALUE_ERROR;
 
   dims = calloc(as[0]->nd, sizeof(size_t));
-  if (dims == NULL)
-    return GA_MEMORY_ERROR;
+  if (dims == NULL) return GA_MEMORY_ERROR;
 
   for (p = 0; p < as[0]->nd; p++) {
     dims[p] = as[0]->dimensions[p];
@@ -999,14 +960,14 @@ int GpuArray_concatenate(GpuArray *r, const GpuArray **as, size_t n,
     }
   }
 
- afterloop:
+afterloop:
   if (err != GA_NO_ERROR) {
     free(dims);
     return err;
   }
 
-  err = GpuArray_empty(r, GpuArray_context(as[0]), restype,
-                       as[0]->nd, dims, GA_ANY_ORDER);
+  err = GpuArray_empty(r, GpuArray_context(as[0]), restype, as[0]->nd, dims,
+                       GA_ANY_ORDER);
   free(dims);
   if (err != GA_NO_ERROR) {
     return err;
@@ -1016,7 +977,7 @@ int GpuArray_concatenate(GpuArray *r, const GpuArray **as, size_t n,
   res_dims = r->dimensions;
   res_flags = r->flags;
   /* This could be optimized by setting the right flags */
-  r->flags &= ~(GA_C_CONTIGUOUS|GA_F_CONTIGUOUS);
+  r->flags &= ~(GA_C_CONTIGUOUS | GA_F_CONTIGUOUS);
   for (i = 0; i < n; i++) {
     r->dimensions = as[i]->dimensions;
     err = ga_extcopy(r, as[i]);
@@ -1031,7 +992,7 @@ int GpuArray_concatenate(GpuArray *r, const GpuArray **as, size_t n,
   r->flags = res_flags;
 
   return GA_NO_ERROR;
- fail:
+fail:
   GpuArray_clear(r);
   return err;
 }
@@ -1044,25 +1005,26 @@ void GpuArray_fprintf(FILE *fd, const GpuArray *a) {
   unsigned int i;
   int comma = 0;
 
-  fprintf(fd, "GpuArray <%p, data: %p (%p)> nd=%d\n",
-          a, a->data, *((void **)a->data), a->nd);
+  fprintf(fd, "GpuArray <%p, data: %p (%p)> nd=%d\n", a, a->data,
+          *((void **)a->data), a->nd);
   fprintf(fd, "\tdims: %p, str: %p\n", a->dimensions, a->strides);
   fprintf(fd, "\tITEMSIZE: %zd\n", GpuArray_ITEMSIZE(a));
   fprintf(fd, "\tTYPECODE: %d\n", a->typecode);
   fprintf(fd, "\tOFFSET: %" SPREFIX "u\n", a->offset);
   fprintf(fd, "\tHOST_DIMS:      ");
   for (i = 0; i < a->nd; ++i) {
-      fprintf(fd, "%zu\t", a->dimensions[i]);
+    fprintf(fd, "%zu\t", a->dimensions[i]);
   }
   fprintf(fd, "\n\tHOST_STRIDES: ");
   for (i = 0; i < a->nd; ++i) {
-      fprintf(fd, "%zd\t", a->strides[i]);
+    fprintf(fd, "%zd\t", a->strides[i]);
   }
   fprintf(fd, "\nFLAGS:");
-#define PRINTFLAG(flag) if (a->flags & flag) { \
-    if (comma) fputc(',', fd);                \
-    fprintf(fd, " " #flag);                   \
-    comma = 1;                                \
+#define PRINTFLAG(flag)        \
+  if (a->flags & flag) {       \
+    if (comma) fputc(',', fd); \
+    fprintf(fd, " " #flag);    \
+    comma = 1;                 \
   }
   PRINTFLAG(GA_C_CONTIGUOUS);
   if (!GpuArray_is_c_contiguous(a) && ISSET(a->flags, GA_C_CONTIGUOUS))
@@ -1083,12 +1045,10 @@ int GpuArray_fdump(FILE *fd, const GpuArray *a) {
   unsigned int i;
   int err;
 
-  for (i = 0; i < a->nd; i++)
-    s *= a->dimensions[i];
+  for (i = 0; i < a->nd; i++) s *= a->dimensions[i];
 
   buf = malloc(s);
-  if (buf == NULL)
-    return GA_MEMORY_ERROR;
+  if (buf == NULL) return GA_MEMORY_ERROR;
 
   err = GpuArray_read(buf, s, a);
   if (err != GA_NO_ERROR) {
@@ -1101,15 +1061,9 @@ int GpuArray_fdump(FILE *fd, const GpuArray *a) {
   while (s) {
     fprintf(fd, "[%" SPREFIX "u] = ", k);
     switch (a->typecode) {
-    case GA_UINT:
-      fprintf(fd, "%u", *(unsigned int *)p);
-      break;
-    case GA_SSIZE:
-      fprintf(fd, "%" SPREFIX "d", *(ssize_t *)p);
-      break;
-    default:
-      free(buf);
-      return GA_UNSUPPORTED_ERROR;
+    case GA_UINT: fprintf(fd, "%u", *(unsigned int *)p); break;
+    case GA_SSIZE: fprintf(fd, "%" SPREFIX "d", *(ssize_t *)p); break;
+    default: free(buf); return GA_UNSUPPORTED_ERROR;
     }
     s -= gpuarray_get_elsize(a->typecode);
     p += gpuarray_get_elsize(a->typecode);
@@ -1148,8 +1102,7 @@ int GpuArray_is_aligned(const GpuArray *a) {
   size_t align = gpuarray_get_type(a->typecode)->align;
   unsigned int i;
 
-  if (a->offset % align != 0)
-    return 0;
+  if (a->offset % align != 0) return 0;
 
   for (i = 0; i < a->nd; i++) {
     if (a->strides[i] % align != 0) return 0;

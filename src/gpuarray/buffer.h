@@ -10,9 +10,9 @@
 #ifndef GPUARRAY_BUFFER_H
 #define GPUARRAY_BUFFER_H
 
-#include <sys/types.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <sys/types.h>
 
 #include <gpuarray/config.h>
 
@@ -50,8 +50,8 @@ typedef struct _gpukernel gpukernel;
  * \param platcount [unsigned int*] will contain number of compatible platforms in host
  * \return int GA_NO_ERROR, if success
  */
-GPUARRAY_PUBLIC int gpu_get_platform_count(const char* name,
-                                           unsigned int* platcount);
+GPUARRAY_PUBLIC int gpu_get_platform_count(const char *name,
+                                           unsigned int *platcount);
 
 /**
  * \brief Gets information about the number of compatible devices on a specific
@@ -62,11 +62,9 @@ GPUARRAY_PUBLIC int gpu_get_platform_count(const char* name,
  * `platform`
  * \return int GA_NO_ERROR, if success
  */
-GPUARRAY_PUBLIC int gpu_get_device_count(const char* name,
+GPUARRAY_PUBLIC int gpu_get_device_count(const char *name,
                                          unsigned int platform,
-                                         unsigned int* devcount);
-
-
+                                         unsigned int *devcount);
 
 /**
  * Create a context on the specified device.
@@ -96,14 +94,14 @@ GPUARRAY_PUBLIC gpucontext *gpucontext_init(const char *name, int dev,
  *
  * This is the default (0) value.
  */
-#define GA_CTX_DEFAULT       0x00
+#define GA_CTX_DEFAULT 0x00
 
 /**
  * Optimize parameters for multi-thread performance.
  *
  * May decrease overall performance in single-thread scenarios.
  */
-#define GA_CTX_MULTI_THREAD  0x01
+#define GA_CTX_MULTI_THREAD 0x01
 
 /**
  * Optimize parameters for single-thread performance.
@@ -215,7 +213,7 @@ GPUARRAY_PUBLIC gpudata *gpudata_alloc(gpucontext *ctx, size_t sz, void *data,
  *
  * This is the default (0) value.
  */
-#define GA_BUFFER_DEV        0x00
+#define GA_BUFFER_DEV 0x00
 
 /**
  * Signal that the memory in this buffer will only be read by kernels.
@@ -225,7 +223,7 @@ GPUARRAY_PUBLIC gpudata *gpudata_alloc(gpucontext *ctx, size_t sz, void *data,
  * You may not call gpudata_memset() with the resulting buffer as the
  * destination.
  */
-#define GA_BUFFER_READ_ONLY  0x01
+#define GA_BUFFER_READ_ONLY 0x01
 
 /**
  * Signal that the memory in this buffer will only be written by
@@ -240,19 +238,19 @@ GPUARRAY_PUBLIC gpudata *gpudata_alloc(gpucontext *ctx, size_t sz, void *data,
  * Initialize the contents of the buffer with the user-supplied host
  * buffer (`data`).  This buffer must be at least `sz` large.
  */
-#define GA_BUFFER_INIT       0x04
+#define GA_BUFFER_INIT 0x04
 
 /**
  * Allocate the buffer in host-reachable memory enabling you to
  * retrieve a pointer to the contents as the
  * `GA_BUFFER_PROP_HOSTPOINTER` property.
  */
-#define GA_BUFFER_HOST       0x08
+#define GA_BUFFER_HOST 0x08
 
 /*#define GA_BUFFER_USE_DATA   0x10*/
 
 /* The upper 16 bits are private flags */
-#define GA_BUFFER_MASK       0xffff
+#define GA_BUFFER_MASK 0xffff
 
 /**
  * @}
@@ -308,9 +306,8 @@ GPUARRAY_PUBLIC int gpudata_share(gpudata *a, gpudata *b, int *ret);
  *
  * \returns GA_NO_ERROR or an error code if an error occurred.
  */
-GPUARRAY_PUBLIC int gpudata_move(gpudata *dst, size_t dstoff,
-                                 gpudata *src, size_t srcoff,
-                                 size_t sz);
+GPUARRAY_PUBLIC int gpudata_move(gpudata *dst, size_t dstoff, gpudata *src,
+                                 size_t srcoff, size_t sz);
 
 /**
  * Transfer the content of buffer across contexts.
@@ -328,9 +325,8 @@ GPUARRAY_PUBLIC int gpudata_move(gpudata *dst, size_t dstoff,
  * \returns the new buffer in dst_ctx or NULL if no efficient way to
  *          transfer could be found.
  */
-GPUARRAY_LOCAL int gpudata_transfer(gpudata *dst, size_t dstoff,
-                                    gpudata *src, size_t srcoff,
-                                    size_t sz);
+GPUARRAY_LOCAL int gpudata_transfer(gpudata *dst, size_t dstoff, gpudata *src,
+                                    size_t srcoff, size_t sz);
 
 /**
  * Transfer data from a buffer to memory.
@@ -344,8 +340,7 @@ GPUARRAY_LOCAL int gpudata_transfer(gpudata *dst, size_t dstoff,
  *
  * \returns GA_NO_ERROR or an error code if an error occurred.
  */
-GPUARRAY_PUBLIC int gpudata_read(void *dst,
-                                 gpudata *src, size_t srcoff,
+GPUARRAY_PUBLIC int gpudata_read(void *dst, gpudata *src, size_t srcoff,
                                  size_t sz);
 
 /**
@@ -360,8 +355,8 @@ GPUARRAY_PUBLIC int gpudata_read(void *dst,
  *
  * \returns GA_NO_ERROR or an error code if an error occurred.
  */
-GPUARRAY_PUBLIC int gpudata_write(gpudata *dst, size_t dstoff,
-                                  const void *src, size_t sz);
+GPUARRAY_PUBLIC int gpudata_write(gpudata *dst, size_t dstoff, const void *src,
+                                  size_t sz);
 
 /**
  * Set a buffer to a byte pattern.
@@ -433,11 +428,10 @@ GPUARRAY_PUBLIC gpucontext *gpudata_context(gpudata *b);
  * \returns Allocated kernel structure or NULL if an error occured.
  * `ret` will be updated with the error code if not NULL.
  */
-GPUARRAY_PUBLIC gpukernel *gpukernel_init(gpucontext *ctx, unsigned int count,
-                                          const char **strings, const size_t *lengths,
-                                          const char *fname, unsigned int numargs,
-                                          const int *typecodes, int flags, int *ret,
-                                          char **err_str);
+GPUARRAY_PUBLIC gpukernel *
+gpukernel_init(gpucontext *ctx, unsigned int count, const char **strings,
+               const size_t *lengths, const char *fname, unsigned int numargs,
+               const int *typecodes, int flags, int *ret, char **err_str);
 
 /**
  * Retain a kernel.
@@ -541,7 +535,7 @@ GPUARRAY_PUBLIC gpucontext *gpukernel_context(gpukernel *k);
  *
  * Type: `char *`
  */
-#define GA_CTX_PROP_DEVNAME  1
+#define GA_CTX_PROP_DEVNAME 1
 
 /**
  * Get the maximum block size (also known as local size) for a kernel
@@ -574,7 +568,7 @@ GPUARRAY_PUBLIC gpucontext *gpukernel_context(gpukernel *k);
  *
  * Type: `size_t`
  */
-#define GA_CTX_PROP_MAXGSIZE  5
+#define GA_CTX_PROP_MAXGSIZE 5
 
 /**
  * Get the vector of blas ops for the context.
@@ -585,7 +579,7 @@ GPUARRAY_PUBLIC gpucontext *gpukernel_context(gpukernel *k);
  *
  * Type: `const gpuarray_blas_ops *`
  */
-#define GA_CTX_PROP_BLAS_OPS  6
+#define GA_CTX_PROP_BLAS_OPS 6
 
 /**
  * Get the compatibility ID for the binaries generated with this context.
@@ -594,7 +588,7 @@ GPUARRAY_PUBLIC gpucontext *gpukernel_context(gpukernel *k);
  *
  * Type: `const char *`
  */
-#define GA_CTX_PROP_BIN_ID    7
+#define GA_CTX_PROP_BIN_ID 7
 
 /**
  * Get a pre-allocated 8 byte buffer for kernel ops.
@@ -608,7 +602,7 @@ GPUARRAY_PUBLIC gpucontext *gpukernel_context(gpukernel *k);
  *
  * Type: `gpudata *`
  */
-#define GA_CTX_PROP_ERRBUF    8
+#define GA_CTX_PROP_ERRBUF 8
 
 /**
  * Get the total size of global memory on the device.
@@ -678,17 +672,17 @@ GPUARRAY_PUBLIC gpucontext *gpukernel_context(gpukernel *k);
  *
  * Type: `const gpuarray_comm_ops *`
  */
-#define GA_CTX_PROP_COMM_OPS  18
+#define GA_CTX_PROP_COMM_OPS 18
 
 /* Start at 512 for GA_BUFFER_PROP_ */
-#define GA_BUFFER_PROP_START  512
+#define GA_BUFFER_PROP_START 512
 
 /**
  * Get the context in which this buffer was allocated.
  *
  * Type: `gpucontext *`
  */
-#define GA_BUFFER_PROP_CTX    512
+#define GA_BUFFER_PROP_CTX 512
 
 /**
  * The reference count of the buffer.  Use only for debugging purposes.
@@ -705,17 +699,17 @@ GPUARRAY_PUBLIC gpucontext *gpukernel_context(gpukernel *k);
  *
  * Type: `size_t`
  */
-#define GA_BUFFER_PROP_SIZE  514
+#define GA_BUFFER_PROP_SIZE 514
 
 /* Start at 1024 for GA_KERNEL_PROP_ */
-#define GA_KERNEL_PROP_START     1024
+#define GA_KERNEL_PROP_START 1024
 
 /**
  * Get the context for which this kernel was compiled.
  *
  * Type: `gpucontext *`
  */
-#define GA_KERNEL_PROP_CTX       1024
+#define GA_KERNEL_PROP_CTX 1024
 
 /**
  * Get the maximum block size (also known as local size) for a call of
@@ -723,7 +717,7 @@ GPUARRAY_PUBLIC gpucontext *gpukernel_context(gpukernel *k);
  *
  * Type: `size_t`
  */
-#define GA_KERNEL_PROP_MAXLSIZE  1025
+#define GA_KERNEL_PROP_MAXLSIZE 1025
 
 /**
  * Get the prefered multiple of the block size for a call to this
@@ -738,7 +732,7 @@ GPUARRAY_PUBLIC gpucontext *gpukernel_context(gpukernel *k);
  *
  * Type `unsigned int`
  */
-#define GA_KERNEL_PROP_NUMARGS   1027
+#define GA_KERNEL_PROP_NUMARGS 1027
 
 /**
  * Get the list of argument types for a kernel.
@@ -748,7 +742,7 @@ GPUARRAY_PUBLIC gpucontext *gpukernel_context(gpukernel *k);
  *
  * Type: `const int *`
  */
-#define GA_KERNEL_PROP_TYPES     1028
+#define GA_KERNEL_PROP_TYPES 1028
 
 /**
  * @}
@@ -769,39 +763,39 @@ typedef enum _ga_usefl {
   /**
    * The kernel source uses CLUDA unified language.
    */
-  GA_USE_CLUDA =      0x01,
+  GA_USE_CLUDA = 0x01,
   /**
    * The kernel makes use of small (size is smaller than 4 bytes) types.
    */
-  GA_USE_SMALL =      0x02,
+  GA_USE_SMALL = 0x02,
   /**
    * The kernel makes use of double or complex doubles.
    */
-  GA_USE_DOUBLE =     0x04,
+  GA_USE_DOUBLE = 0x04,
   /**
    * The kernel makes use of complex of complex doubles.
    */
-  GA_USE_COMPLEX =    0x08,
+  GA_USE_COMPLEX = 0x08,
   /**
    * The kernel makes use of half-floats (also known as float16)
    */
-  GA_USE_HALF =       0x10,
+  GA_USE_HALF = 0x10,
   /**
    * The source code passed is actually a kernel binary.
    *
    * For the cuda backend this can also be a PTX module.
    */
-  GA_USE_BINARY =     0x20,
+  GA_USE_BINARY = 0x20,
   /* If you add a new flag, don't forget to update both
      gpuarray_buffer_{cuda,opencl}.c with the implementation of your flag */
   /**
    * The kernel is made of CUDA code.
    */
-  GA_USE_CUDA =     0x2000,
+  GA_USE_CUDA = 0x2000,
   /**
    * The kernel is made of OpenCL code.
    */
-  GA_USE_OPENCL =   0x4000,
+  GA_USE_OPENCL = 0x4000,
 } ga_usefl;
 
 #ifdef __cplusplus
