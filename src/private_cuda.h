@@ -102,7 +102,7 @@ void cuda_exit(cuda_context *ctx);
 struct _gpudata {
   CUdeviceptr ptr;
   cuda_context *ctx;
-  /* Don't change anything abovbe this without checking
+  /* Don't change anything above this without checking
      struct _partial_gpudata */
   CUevent rev;
   CUevent wev;
@@ -138,6 +138,7 @@ struct _gpukernel {
   CUfunction k;
   CUmodule m32;
   CUfunction k32;
+  uint32_t *arg32;
   void **args;
   int *types;
   unsigned int argcount;

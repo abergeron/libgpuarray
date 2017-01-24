@@ -38,6 +38,8 @@ STATIC_ASSERT(sizeof(GpuArrayIpcMemHandle) == sizeof(CUipcMemHandle), cuda_ipcme
  */
 #define FRAG_SIZE (64)
 
+#define SIZE_32_MAX 2147483647
+
 static CUresult err;
 
 const gpuarray_buffer_ops cuda_ops;
@@ -1171,6 +1173,7 @@ static void _cuda_freekernel(gpukernel *k) {
     }
     CLEAR(k);
     free(k->args);
+    free(k->arg32);
     free(k->types);
     free(k);
   }
@@ -1304,6 +1307,15 @@ static gpukernel *cuda_newkernel(gpucontext *c, unsigned int count,
       FAIL(NULL, GA_MEMORY_ERROR);
     }
 
+    res->arg32 = calloc(argcount, sizeof(uint32_t));
+    if (res->arg32 == NULL) {
+      _cuda_freekernel(res);
+      strb_clear(&src);
+      strb_clear(&bin);
+      cuda_exit(ctx);
+      FAIL(NULL, GA_MEMORY_ERROR);
+    }
+
     ctx->err = cuModuleLoadData(&res->m, bin.s);
     if (ctx->err != CUDA_SUCCESS) {
       _cuda_freekernel(res);
@@ -1388,6 +1400,8 @@ static int cuda_callkernel(gpukernel *k, unsigned int n,
                            const size_t *gs, const size_t *ls,
                            size_t shared, void **args) {
     cuda_context *ctx = k->ctx;
+    CUfunction pk;
+    int call32 = 1;
     unsigned int i;
 
     ASSERT_KER(k);
@@ -1401,20 +1415,39 @@ static int cuda_callkernel(gpukernel *k, unsigned int n,
         /* We don't have any better info for now */
         GA_CUDA_EXIT_ON_ERROR(ctx,
             cuda_wait((gpudata *)args[i], CUDA_WAIT_ALL));
+        call32 &= (((gpudata *)args[i])->sz <= SIZE_32_MAX);
       }
     }
 
+    if (call32) {
+      if (args != k->args) {
+        memcpy(k->args, args, sizeof(void *) * k->argcount);
+        args = k->args;
+      }
+      for (i = 0; i < k->argcount; i++) {
+        if (k->types[i] == GA_SIZE) {
+          k->arg32[i] = *(size_t *)args[i];
+          k->args[i] = &k->arg32[i];
+        } else if (k->types[i] == GA_SSIZE) {
+          k->arg32[i] = (uint32_t)(int32_t)*(ssize_t *)args[i];
+          k->args[i] = &k->arg32[i];
+        }
+      }
+    }
+
+    pk = call32 ? k->k32 : k->k;
+
     switch (n) {
     case 1:
-      ctx->err = cuLaunchKernel(k->k, gs[0], 1, 1, ls[0], 1, 1, shared,
+      ctx->err = cuLaunchKernel(pk, gs[0], 1, 1, ls[0], 1, 1, shared,
                                 ctx->s, args, NULL);
       break;
     case 2:
-      ctx->err = cuLaunchKernel(k->k, gs[0], gs[1], 1, ls[0], ls[1], 1, shared,
+      ctx->err = cuLaunchKernel(pk, gs[0], gs[1], 1, ls[0], ls[1], 1, shared,
                                 ctx->s, args, NULL);
       break;
     case 3:
-      ctx->err = cuLaunchKernel(k->k, gs[0], gs[1], gs[2], ls[0], ls[1], ls[2],
+      ctx->err = cuLaunchKernel(pk, gs[0], gs[1], gs[2], ls[0], ls[1], ls[2],
                                 shared, ctx->s, args, NULL);
       break;
     default:
