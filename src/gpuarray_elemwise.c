@@ -15,7 +15,6 @@ struct _GpuElemwise {
   gpuelemwise_arg *args; /* Argument descriptors */
   GpuKernel k_contig; /* Contiguous kernel */
   GpuKernel *k_basic; /* Normal basic kernels */
-  GpuKernel *k_basic_32; /* 32-bit address basic kernels */
   size_t *dims; /* Preallocated shape buffer for dimension collapsing */
   ssize_t **strides; /* Preallocated strides buffer for dimension collapsing */
   unsigned int nd; /* Current maximum number of dimensions allocated */
@@ -24,7 +23,6 @@ struct _GpuElemwise {
   int flags; /* Flags for the operation (none at the moment */
 };
 
-#define GEN_ADDR32      0x1
 #define GEN_CONVERT_F16 0x2
 
 /* This makes sure we have the same value for those flags since we use some shortcuts */
@@ -109,7 +107,6 @@ static int ge_grow(GpuElemwise *ge, unsigned int nd) {
   assert(nd > ge->nd);
 
   if (reallocaz((void **)&ge->k_basic, sizeof(GpuKernel), ge->nd, nd) ||
-      reallocaz((void **)&ge->k_basic_32, sizeof(GpuKernel), ge->nd, nd) ||
       reallocaz((void **)&ge->dims, sizeof(size_t), ge->nd, nd))
     return 1;
   for (i = 0; i < ge->narray; i++) {
@@ -132,14 +129,8 @@ static int gen_elemwise_basic_kernel(GpuKernel *k, gpucontext *ctx,
   unsigned int i, _i, j;
   int *ktypes;
   size_t p;
-  char *size = "ga_size", *ssize = "ga_ssize";
   int flags = GA_USE_CLUDA;
   int res;
-
-  if (ISSET(gen_flags, GEN_ADDR32)) {
-    size = "ga_uint";
-    ssize = "ga_int";
-  }
 
   flags |= gpuarray_type_flagsa(n, args);
 
@@ -181,29 +172,29 @@ static int gen_elemwise_basic_kernel(GpuKernel *k, gpucontext *ctx,
     }
     if (j != (n - 1)) strb_appends(&sb, ", ");
   }
-  strb_appendf(&sb, ") {\n"
-               "const %s idx = LDIM_0 * GID_0 + LID_0;\n"
-               "const %s numThreads = LDIM_0 * GDIM_0;\n"
-               "%s i;\n", size, size, size);
+  strb_appends(&sb, ") {\n"
+               "const ga_size idx = LDIM_0 * GID_0 + LID_0;\n"
+               "const ga_size numThreads = LDIM_0 * GDIM_0;\n"
+               "ga_size i;\n");
 
   strb_appends(&sb, "for(i = idx; i < n; i += numThreads) {\n");
   if (nd > 0)
-    strb_appendf(&sb, "%s ii = i;\n%s pos;\n", size, size);
+    strb_appends(&sb, "ga_size ii = i;\nga_size pos;\n");
   for (j = 0; j < n; j++) {
     if (is_array(args[j]))
-      strb_appendf(&sb, "%s %s_p = %s_offset;\n",
-                   size, args[j].name, args[j].name);
+      strb_appendf(&sb, "ga_size %s_p = %s_offset;\n",
+                   args[j].name, args[j].name);
   }
   for (_i = nd; _i > 0; _i--) {
     i = _i - 1;
     if (i > 0)
-      strb_appendf(&sb, "pos = ii %% (%s)dim%u;\nii = ii / (%s)dim%u;\n", size, i, size, i);
+      strb_appendf(&sb, "pos = ii %% dim%u;\nii = ii / dim%u;\n", i, i);
     else
       strb_appends(&sb, "pos = ii;\n");
     for (j = 0; j < n; j++) {
       if (is_array(args[j]))
-        strb_appendf(&sb, "%s_p += pos * (%s)%s_str_%u;\n", args[j].name,
-                     ssize, args[j].name, i);
+        strb_appendf(&sb, "%s_p += pos * %s_str_%u;\n", args[j].name,
+                     args[j].name, i);
     }
   }
   for (j = 0; j < n; j++) {
@@ -270,11 +261,10 @@ static ssize_t **strides_array(unsigned int num, unsigned int nd) {
 
 static int check_basic(GpuElemwise *ge, void **args, int flags,
                        size_t *_n, unsigned int *_nd, size_t **_dims,
-                       ssize_t ***_strides, int *_call32) {
+                       ssize_t ***_strides) {
   size_t n;
   GpuArray *a = NULL, *v;
   unsigned int i, j, p, num_arrays = 0, nd = 0, nnd;
-  int call32 = 1;
 
   /* Go through the list and grab some info */
   for (i = 0; i < ge->n; i++) {
@@ -338,17 +328,12 @@ static int check_basic(GpuElemwise *ge, void **args, int flags,
         if (v->dimensions[j] == 1) {
           ge->strides[p][j] = 0;
         }
-        call32 &= v->offset < ADDR32_MAX;
-        call32 &= (SADDR32_MIN < ge->strides[p][j] &&
-                   ge->strides[p][j] < SADDR32_MAX);
         p++;
       } /* is_array() */
     } /* for each arg */
     /* We have the final value in dims[j] */
     n *= ge->dims[j];
   } /* for each dim */
-
-  call32 &= n < ADDR32_MAX;
 
   if (ISCLR(flags, GE_NOCOLLAPSE) && nd > 1) {
     gpuarray_elemwise_collapse(num_arrays, &nd, ge->dims, ge->strides);
@@ -358,13 +343,12 @@ static int check_basic(GpuElemwise *ge, void **args, int flags,
   *_nd = nd;
   *_dims = ge->dims;
   *_strides = ge->strides;
-  *_call32 = call32;
 
   return GA_NO_ERROR;
 }
 
 static int call_basic(GpuElemwise *ge, void **args, size_t n, unsigned int nd,
-                      size_t *dims, ssize_t **strs, int call32) {
+                      size_t *dims, ssize_t **strs) {
   GpuKernel *k;
   size_t ls = 0, gs = 0;
   unsigned int p = 0, i, j, l;
@@ -372,16 +356,12 @@ static int call_basic(GpuElemwise *ge, void **args, size_t n, unsigned int nd,
 
   if (nd == 0) return GA_VALUE_ERROR;
 
-  if (call32)
-    k = &ge->k_basic_32[nd-1];
-  else
-    k = &ge->k_basic[nd-1];
+  k = &ge->k_basic[nd-1];
 
   if (!k_initialized(k)) {
     err = gen_elemwise_basic_kernel(k, GpuKernel_context(&ge->k_contig), NULL,
                                     ge->preamble, ge->expr, nd, ge->n,
-                                    ge->args, ((call32 ? GEN_ADDR32 : 0) |
-                                               (ge->flags & GE_CONVERT_F16)));
+                                    ge->args, ge->flags & GE_CONVERT_F16);
     if (err != GA_NO_ERROR)
       return err;
   }
@@ -624,10 +604,6 @@ GpuElemwise *GpuElemwise_new(gpucontext *ctx,
   if (res->k_basic == NULL)
     goto fail;
 
-  res->k_basic_32 = calloc(res->nd, sizeof(GpuKernel));
-  if (res->k_basic_32 == NULL)
-    goto fail;
-
   ret = gen_elemwise_contig_kernel(&res->k_contig, ctx,
 #ifdef DEBUG
                                    &errstr,
@@ -668,26 +644,6 @@ GpuElemwise *GpuElemwise_new(gpucontext *ctx,
     }
   }
 
-  for (i = 0; i < nd; i++) {
-    ret = gen_elemwise_basic_kernel(&res->k_basic_32[i], ctx,
-#ifdef DEBUG
-                                    &errstr,
-#else
-                                    NULL,
-#endif
-                                    res->preamble, res->expr,
-                                    i+1, res->n, res->args,
-                                    GEN_ADDR32 | (res->flags & GE_CONVERT_F16));
-    if (ret != GA_NO_ERROR) {
-#ifdef DEBUG
-      if (errstr != NULL)
-        fprintf(stderr, "%s\n", errstr);
-      free(errstr);
-#endif
-      goto fail;
-    }
-  }
-
   return res;
 
  fail:
@@ -698,8 +654,6 @@ GpuElemwise *GpuElemwise_new(gpucontext *ctx,
 void GpuElemwise_free(GpuElemwise *ge) {
   unsigned int i;
   for (i = 0; i < ge->nd; i++) {
-    if (k_initialized(&ge->k_basic_32[i]))
-      GpuKernel_clear(&ge->k_basic_32[i]);
     if (k_initialized(&ge->k_basic[i]))
       GpuKernel_clear(&ge->k_basic[i]);
   }
@@ -723,7 +677,6 @@ int GpuElemwise_call(GpuElemwise *ge, void **args, int flags) {
   ssize_t **strides;
   unsigned int nd;
   int contig;
-  int call32;
   int err;
 
   err = check_contig(ge, args, &n, &contig);
@@ -731,10 +684,10 @@ int GpuElemwise_call(GpuElemwise *ge, void **args, int flags) {
     if (n == 0) return GA_NO_ERROR;
     return call_contig(ge, args, n);
   }
-  err = check_basic(ge, args, flags, &n, &nd, &dims, &strides, &call32);
+  err = check_basic(ge, args, flags, &n, &nd, &dims, &strides);
   if (err == GA_NO_ERROR) {
     if (n == 0) return GA_NO_ERROR;
-    return call_basic(ge, args, n, nd, dims, strides, call32);
+    return call_basic(ge, args, n, nd, dims, strides);
   }
   return err;
 }
