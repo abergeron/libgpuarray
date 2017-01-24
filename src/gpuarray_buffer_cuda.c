@@ -30,10 +30,11 @@ STATIC_ASSERT(sizeof(GpuArrayIpcMemHandle) == sizeof(CUipcMemHandle), cuda_ipcme
 /* Allocations will be made in blocks of at least this size */
 #define BLOCK_SIZE (4 * 1024 * 1024)
 
-/* No returned allocations will be smaller than this size.  Also, they
+/*
+ * No returned allocations will be smaller than this size.  Also, they
  * will be aligned to this size.
  *
- * Some libraries depend on this value and will crash if it's smaller.
+ * Some libraries depend on this value and will crash if it's smaller than 64.
  */
 #define FRAG_SIZE (64)
 
@@ -1164,6 +1165,7 @@ static void _cuda_freekernel(gpukernel *k) {
     if (k->ctx != NULL) {
       cuda_enter(k->ctx);
       cuModuleUnload(k->m);
+      cuModuleUnload(k->m32);
       cuda_exit(k->ctx);
       cuda_free_ctx(k->ctx);
     }
@@ -1313,6 +1315,34 @@ static gpukernel *cuda_newkernel(gpucontext *c, unsigned int count,
     strb_clear(&bin);
 
     ctx->err = cuModuleGetFunction(&res->k, res->m, fname);
+    if (ctx->err != CUDA_SUCCESS) {
+      _cuda_freekernel(res);
+      strb_clear(&src);
+      cuda_exit(ctx);
+      FAIL(NULL, GA_IMPL_ERROR);
+    }
+
+    strb_reset(&log);
+    err = compile(ctx, &src, &bin, &log, 32);
+    strb_clear(&log);
+    if (err != GA_NO_ERROR || strb_error(&bin)) {
+      _cuda_freekernel(res);
+      strb_clear(&bin);
+      cuda_exit(ctx);
+      FAIL(NULL, err);
+    }
+
+    ctx->err = cuModuleLoadData(&res->m32, bin.s);
+    if (ctx->err != CUDA_SUCCESS) {
+      _cuda_freekernel(res);
+      strb_clear(&src);
+      strb_clear(&bin);
+      cuda_exit(ctx);
+      FAIL(NULL, GA_IMPL_ERROR);
+    }
+    strb_clear(&bin);
+
+    ctx->err = cuModuleGetFunction(&res->k32, res->m32, fname);
     if (ctx->err != CUDA_SUCCESS) {
       _cuda_freekernel(res);
       strb_clear(&src);
