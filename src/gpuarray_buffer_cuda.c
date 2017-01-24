@@ -394,49 +394,47 @@ size_t cuda_get_sz(gpudata *g) { ASSERT_BUF(g); return g->sz; }
 #define CHKFAIL(v) if (err != CUDA_SUCCESS) FAIL(v, GA_IMPL_ERROR)
 
 static const char CUDA_PREAMBLE[] =
-    "#define local_barrier() __syncthreads()\n"
-    "#define WITHIN_KERNEL extern \"C\" __device__\n"
-    "#define KERNEL extern \"C\" __global__\n"
-    "#define GLOBAL_MEM /* empty */\n"
-    "#define LOCAL_MEM __shared__\n"
-    "#define LOCAL_MEM_ARG /* empty */\n"
-    "#define REQD_WG_SIZE(X,Y,Z) __launch_bounds__(X*Y, Z)\n"
-    "#ifdef NAN\n"
-    "#undef NAN\n"
-    "#endif\n"
-    "#define NAN __int_as_float(0x7fffffff)\n"
-    "#define LID_0 threadIdx.x\n"
-    "#define LID_1 threadIdx.y\n"
-    "#define LID_2 threadIdx.z\n"
-    "#define LDIM_0 blockDim.x\n"
-    "#define LDIM_1 blockDim.y\n"
-    "#define LDIM_2 blockDim.z\n"
-    "#define GID_0 blockIdx.x\n"
-    "#define GID_1 blockIdx.y\n"
-    "#define GID_2 blockIdx.z\n"
-    "#define GDIM_0 gridDim.x\n"
-    "#define GDIM_1 gridDim.y\n"
-    "#define GDIM_2 gridDim.z\n"
-    "#define ga_bool unsigned char\n"
-    "#define ga_byte signed char\n"
-    "#define ga_ubyte unsigned char\n"
-    "#define ga_short short\n"
-    "#define ga_ushort unsigned short\n"
-    "#define ga_int int\n"
-    "#define ga_uint unsigned int\n"
-    "#define ga_long long long\n"
-    "#define ga_ulong unsigned long long\n"
-    "#define ga_float float\n"
-    "#define ga_double double\n"
-    "#define ga_half ga_ushort\n"
-    "#define ga_size size_t\n"
-    "#define ga_ssize ptrdiff_t\n"
-    "#define load_half(p) __half2float(*(p))\n"
-    "#define store_half(p, v) (*(p) = __float2half_rn(v))\n"
-    "#define GA_DECL_SHARED_PARAM(type, name)\n"
-    "#define GA_DECL_SHARED_BODY(type, name) extern __shared__ type name[];\n"
-    "#define GA_WARP_SIZE warpSize\n"
-    "#line 1\n";
+  "#define local_barrier() __syncthreads()\n"
+  "#define WITHIN_KERNEL extern \"C\" __device__\n"
+  "#define KERNEL extern \"C\" __global__\n"
+  "#define GLOBAL_MEM /* empty */\n"
+  "#define LOCAL_MEM __shared__\n"
+  "#define LOCAL_MEM_ARG /* empty */\n"
+  "#define REQD_WG_SIZE(X,Y,Z) __launch_bounds__(X*Y, Z)\n"
+  "#ifdef NAN\n"
+  "#undef NAN\n"
+  "#endif\n"
+  "#define NAN __int_as_float(0x7fffffff)\n"
+  "#define LID_0 threadIdx.x\n"
+  "#define LID_1 threadIdx.y\n"
+  "#define LID_2 threadIdx.z\n"
+  "#define LDIM_0 blockDim.x\n"
+  "#define LDIM_1 blockDim.y\n"
+  "#define LDIM_2 blockDim.z\n"
+  "#define GID_0 blockIdx.x\n"
+  "#define GID_1 blockIdx.y\n"
+  "#define GID_2 blockIdx.z\n"
+  "#define GDIM_0 gridDim.x\n"
+  "#define GDIM_1 gridDim.y\n"
+  "#define GDIM_2 gridDim.z\n"
+  "#define ga_bool unsigned char\n"
+  "#define ga_byte signed char\n"
+  "#define ga_ubyte unsigned char\n"
+  "#define ga_short short\n"
+  "#define ga_ushort unsigned short\n"
+  "#define ga_int int\n"
+  "#define ga_uint unsigned int\n"
+  "#define ga_long long long\n"
+  "#define ga_ulong unsigned long long\n"
+  "#define ga_float float\n"
+  "#define ga_double double\n"
+  "#define ga_half ga_ushort\n"
+  "#define load_half(p) __half2float(*(p))\n"
+  "#define store_half(p, v) (*(p) = __float2half_rn(v))\n"
+  "#define GA_DECL_SHARED_PARAM(type, name)\n"
+  "#define GA_DECL_SHARED_BODY(type, name) extern __shared__ type name[];\n"
+  "#define GA_WARP_SIZE warpSize\n"
+  "#line 1\n";
 
 /* XXX: add complex, quads, longlong */
 /* XXX: add vector types */
@@ -996,27 +994,50 @@ static int detect_arch(const char *prefix, char *ret, CUresult *err) {
   return GA_NO_ERROR;
 }
 
-static int call_compiler(cuda_context *ctx, strb *src, strb *ptx, strb *log) {
+static int call_compiler(cuda_context *ctx, strb *src, strb *ptx, strb *log,
+                         int dev_sz) {
   nvrtcProgram prog;
   size_t buflen;
-  const char *opts[4] = {
-    "-arch", ""
-    , "-G", "-lineinfo"
+  const char *opts[8] = {
+    "-arch", NULL,
+    "-D", NULL,
+    "-D", NULL,
+#ifdef DEBUG
+    NULL, NULL,
+#endif
   };
+  int numOpts = 2;
   nvrtcResult err;
 
   opts[1] = ctx->bin_id;
 
+  switch (dev_sz) {
+  case 64:
+    opts[numOpts+1] = "ga_size=ga_ulong";
+    opts[numOpts+3] = "ga_size=ga_long";
+    numOpts += 4;
+    break;
+  case 32:
+    opts[numOpts+1] = "ga_size=ga_uint";
+    opts[numOpts+3] = "ga_size=ga_int";
+    numOpts += 4;
+    break;
+  case 0:
+    break;
+  default:
+    return GA_VALUE_ERROR;
+  }
+
+#ifdef DEBUG
+  opts[numOpts] = "-G";
+  opts[numOpts+1] = "-lineinfo";
+  numOpts += 2;
+#endif
+
   err = nvrtcCreateProgram(&prog, src->s, NULL, 0, NULL, NULL);
   if (err != NVRTC_SUCCESS) return GA_SYS_ERROR;
 
-  err = nvrtcCompileProgram(prog,
-#ifdef DEBUG
-                            4,
-#else
-                            2,
-#endif
-                            opts);
+  err = nvrtcCompileProgram(prog, numOpts, opts);
   if (nvrtcGetProgramLogSize(prog, &buflen) == NVRTC_SUCCESS) {
     strb_appends(log, "NVRTC compile log::\n");
     if (strb_ensure(log, buflen) == 0)
@@ -1092,7 +1113,8 @@ out:
   return err;
 }
 
-static int compile(cuda_context *ctx, strb *src, strb* bin, strb *log) {
+static int compile(cuda_context *ctx, strb *src, strb* bin, strb *log,
+                   int dev_sz) {
   strb ptx = STRB_STATIC_INIT;
   strb *cbin;
   kernel_key k;
@@ -1111,7 +1133,7 @@ static int compile(cuda_context *ctx, strb *src, strb* bin, strb *log) {
     }
   }
 
-  err = call_compiler(ctx, src, &ptx, log);
+  err = call_compiler(ctx, src, &ptx, log, dev_sz);
   if (err != GA_NO_ERROR) return err;
   err = make_bin(ctx, &ptx, bin, log);
   if (err != GA_NO_ERROR) return err;
@@ -1232,7 +1254,7 @@ static gpukernel *cuda_newkernel(gpucontext *c, unsigned int count,
       return res;
     }
 
-    err = compile(ctx, &src, &bin, &log);
+    err = compile(ctx, &src, &bin, &log, 64);
     if (err != GA_NO_ERROR || strb_error(&bin)) {
       if (err_str != NULL) {
         strb debug_msg = STRB_STATIC_INIT;

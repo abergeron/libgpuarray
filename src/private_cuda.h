@@ -136,6 +136,8 @@ struct _gpukernel {
   cuda_context *ctx; /* Keep the context first */
   CUmodule m;
   CUfunction k;
+  CUmodule m32;
+  CUfunction k32;
   void **args;
   int *types;
   unsigned int argcount;
