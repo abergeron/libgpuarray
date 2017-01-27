@@ -100,6 +100,9 @@ int GpuArray_empty(GpuArray *a, gpucontext *ctx, int typecode,
   unsigned int i;
   int res = GA_NO_ERROR;
 
+  if (typecode == GA_SIZE || typecode == GA_SSIZE)
+    return GA_VALUE_ERROR;
+
   if (ord == GA_ANY_ORDER)
     ord = GA_C_ORDER;
 
