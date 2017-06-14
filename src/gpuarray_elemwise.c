@@ -156,30 +156,27 @@ static int gen_elemwise_basic_kernel(GpuKernel *k, gpucontext *ctx,
 
   if (preamble)
     strb_appends(&sb, preamble);
-  strb_appends(&sb, "\nKERNEL void elem(const ga_size n, ");
+  strb_appends(&sb, "\nKERNEL void elem(const ga_size n");
   ktypes[p++] = GA_SIZE;
   for (i = 0; i < nd; i++) {
-    strb_appendf(&sb, "const ga_size dim%u, ", i);
+    strb_appendf(&sb, ", const ga_size dim%u", i);
     ktypes[p++] = GA_SIZE;
   }
   for (j = 0; j < n; j++) {
     if (is_array(args[j])) {
-      strb_appendf(&sb, "GLOBAL_MEM %s *%s_data, const ga_size %s_offset%s",
-                   ctype(args[j].typecode), args[j].name, args[j].name,
-                   nd == 0 ? "" : ", ");
+      strb_appendf(&sb, ", GLOBAL_MEM %s *%s_data, const ga_size %s_offset",
+                   ctype(args[j].typecode), args[j].name, args[j].name);
       ktypes[p++] = GA_BUFFER;
       ktypes[p++] = GA_SIZE;
 
       for (i = 0; i < nd; i++) {
-        strb_appendf(&sb, "const ga_ssize %s_str_%u%s", args[j].name, i,
-                     (i == (nd - 1)) ? "": ", ");
+        strb_appendf(&sb, ", const ga_ssize %s_str_%u", args[j].name, i);
         ktypes[p++] = GA_SSIZE;
       }
     } else {
-      strb_appendf(&sb, "%s %s", ctype(args[i].typecode), args[j].name);
+      strb_appendf(&sb, ", %s %s", ctype(args[i].typecode), args[j].name);
       ktypes[p++] = args[j].typecode;
     }
-    if (j != (n - 1)) strb_appends(&sb, ", ");
   }
   strb_appendf(&sb, ") {\n"
                "const %s idx = LDIM_0 * GID_0 + LID_0;\n"
