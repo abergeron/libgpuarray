@@ -33,7 +33,7 @@ typedef struct _GpuReduction GpuReduction;
  * \param init_val value that would be neutral for the reduction
  * \param typecode type of the array to reduce (and the result)
  * \param nd number of dimensions of input
- * \param axes axes to keep on (if NULL reduce on all axes)
+ * \param axis axis to reduce on, -1 for all axes.
  * \param flags Must be 0
  *
  * \return GA_NO_ERROR if the operation was successful
@@ -46,7 +46,7 @@ GPUARRAY_PUBLIC int GpuReduction_new(GpuReduction **gr,
                                      const char *init_val,
                                      int typecode,
                                      unsigned int nd,
-                                     unsigned char *axes,
+                                     int axis,
                                      int flags);
 
 /**
