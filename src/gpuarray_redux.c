@@ -1,8 +1,12 @@
 #include "gpuarray/reduction.h"
 
+#include "gpuarray/kernel.h"
+
 #include "util/error.h"
 
 #include "private.h"
+
+#include <assert.h>
 
 struct _GpuReduction {
   const char *expr; /* reduction expression */
@@ -25,6 +29,10 @@ static inline int k_initialized(GpuKernel *k) {
   return k->k != NULL;
 }
 
+static inline const char *ctype(int typecode) {
+  return gpuarray_get_type(typecode)->cluda_name;
+}
+
 static inline int redux_ok(uint32_t redux, unsigned int i) {
   return redux & (1U << i);
 }
@@ -32,7 +40,7 @@ static inline int redux_ok(uint32_t redux, unsigned int i) {
 /* Size of the array of kernels to store the possibilities */
 static inline unsigned int ndsz(unsigned int n) {
   assert(n <= 32);
-  return n * (n + 1) / 2
+  return n * (n + 1) / 2;
 }
 
 static int gen_reduction_basic_kernel(GpuKernel *k, gpucontext *ctx,
@@ -170,6 +178,8 @@ static int gen_reduction_basic_kernel(GpuKernel *k, gpucontext *ctx,
   return res;
 }
 
+#define MUL_NO_OVERFLOW ((size_t)1 << (sizeof(size_t) * 4))
+
 static int reallocaz(void **p, size_t elsz, size_t old, size_t new) {
   char *res;
 
@@ -187,8 +197,6 @@ static int reallocaz(void **p, size_t elsz, size_t old, size_t new) {
 }
 
 static int gr_grow(GpuReduction *gr, unsigned int nd, gpucontext *ctx) {
-  unsigned int i;
-
   assert(nd < gr->nd);
 
   if (reallocaz((void **)&gr->rdims, sizeof(size_t), gr->nd*2, nd*2) ||
@@ -202,15 +210,15 @@ static int gr_grow(GpuReduction *gr, unsigned int nd, gpucontext *ctx) {
   return GA_NO_ERROR;
 }
 
-static int get_kernel_nd(GpuKernel **k, GpuReduction *gr,
+static int get_kernel_nd(GpuKernel **k, gpucontext *ctx, GpuReduction *gr,
                          unsigned int nd, unsigned int rnd) {
   uint32_t redux = (1U << rnd) - 1;
   char *err_str = NULL;
   unsigned int kidx = ndsz(nd) + rnd;
-  int err;
+  int err = GA_NO_ERROR;
 
   if (!k_initialized(&gr->knd[kidx])) {
-    err = gen_reduction_basic_kernel(&gr->knd[ndsz(nd) + rnd], &err_str,
+    err = gen_reduction_basic_kernel(&gr->knd[ndsz(nd) + rnd], ctx, &err_str,
                                      gr->preamble, gr->map_expr, gr->expr,
                                      gr->init_val, nd, redux,
                                      gr->input_dtype, gr->work_dtype,
@@ -365,7 +373,7 @@ int GpuReduction_new(GpuReduction **gr, gpucontext *ctx,
   /* Initialize the kernels according to nd */
   for (i = 0; i < res->nd; i++) {
     for (j = 1; j <= i; j++) {
-      err = get_kernel_nd(&k, res, i, j);
+      err = get_kernel_nd(&k, ctx, res, i, j);
       if (err != GA_NO_ERROR) {
         GpuReduction_free(res);
         return err;
@@ -396,13 +404,16 @@ int GpuReduction_call(GpuReduction *gr, GpuArray *input, uint32_t redux,
   gpucontext *ctx = GpuKernel_context(&gr->knd[0]);
   GpuKernel *k;
   size_t nprocs;
+  size_t gs[2];
+  size_t ls[2];
+  size_t shared;
   unsigned int i, rnd, ond;
 
   if (input->nd > 32)
     return error_set(ctx->err, GA_UNSUPPORTED_ERROR, "Reduction supports 32 dimensions maximum");
 
   if (input->nd > gr->nd)
-    GA_CHECK(gr_grow(gd, input->nd, ctx));
+    GA_CHECK(gr_grow(gr, input->nd, ctx));
 
   rnd = 0;
   ond = 0;
@@ -431,7 +442,7 @@ int GpuReduction_call(GpuReduction *gr, GpuArray *input, uint32_t redux,
   if (ond > 1)
     gpuarray_elemwise_collapse(2, &ond, gr->odims, gr->ostrs);
 
-  GA_CHECK(get_kernel_nd(&k, gr, rnd+ond, rnd));
+  GA_CHECK(get_kernel_nd(&k, ctx, gr, rnd+ond, rnd));
 
   GA_CHECK(gpukernel_property(k->k, GA_CTX_PROP_NUMPROCS, &nprocs));
   GA_CHECK(do_schedule(gr, k, rnd, ond,
@@ -443,5 +454,6 @@ int GpuReduction_call(GpuReduction *gr, GpuArray *input, uint32_t redux,
 
   return do_call(gr, k, rnd, ond,
                  input->data, input->offset,
-                 output->data, output->offset);
+                 output->data, output->offset,
+                 gs, ls, shared);
 }

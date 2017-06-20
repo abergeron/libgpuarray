@@ -49,6 +49,7 @@ gpuarray_kernel.c
 gpuarray_extension.c
 gpuarray_elemwise.c
 gpuarray_reduction.c
+gpuarray_redux.c
 gpuarray_buffer_cuda.c
 gpuarray_blas_cuda_cublas.c
 gpuarray_collectives_cuda_nccl.c

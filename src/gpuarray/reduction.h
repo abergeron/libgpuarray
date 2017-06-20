@@ -5,7 +5,7 @@
  */
 
 #include <gpuarray/buffer.h>
-#include <gpuarray/elemwise.h>
+#include <gpuarray/array.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,8 +45,7 @@ GPUARRAY_PUBLIC int GpuReduction_new(GpuReduction **gr,
                                      const char *expr,
                                      const char *init_val,
                                      int typecode,
-                                     unsigned int nd,
-                                     int axis,
+                                     unsigned int init_nd,
                                      int flags);
 
 /**
@@ -55,4 +54,7 @@ GPUARRAY_PUBLIC int GpuReduction_new(GpuReduction **gr,
  * \param gr the GpuReduction object to free.
  */
 GPUARRAY_PUBLIC void GpuReduction_free(GpuReduction *gr);
+
+GPUARRAY_PUBLIC int GpuReduction_call(GpuReduction *gr, GpuArray *input,
+                                      uint32_t redux, GpuArray *output);
 #endif
