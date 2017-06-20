@@ -619,7 +619,7 @@ GpuElemwise *GpuElemwise_new(gpucontext *ctx,
     goto fail;
   }
 
-  /* Count the arrays in the arguements */
+  /* Count the arrays in the arguments */
   res->narray = 0;
   for (i = 0; i < res->n; i++)
     if (is_array(res->args[i])) res->narray++;
