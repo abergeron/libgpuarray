@@ -69,6 +69,10 @@ add_executable(check_elemwise main.c device.c check_elemwise.c)
 target_link_libraries(check_elemwise ${CHECK_LIBRARIES} gpuarray)
 add_test(test_elemwise "${CMAKE_CURRENT_BINARY_DIR}/check_elemwise")
 
+add_executable(check_redux main.c device.c check_redux.c)
+target_link_libraries(check_redux ${CHECK_LIBRARIES} gpuarray)
+add_test(test_redux "${CMAKE_CURRENT_BINARY_DIR}/check_redux")
+
 add_executable(check_error main.c check_error.c)
 target_link_libraries(check_error ${CHECK_LIBRARIES} gpuarray)
 add_test(test_error "${CMAKE_CURRENT_BINARY_DIR}/check_error")
