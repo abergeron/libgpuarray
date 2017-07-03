@@ -43,10 +43,16 @@
 #define DONTFREE 0x10000000
 
 static inline int error_cuda(error *e, const char *msg, CUresult err) {
-  const char *name, *descr;
-  cuGetErrorName(err, &name);
-  cuGetErrorString(err, &descr);
-  return error_fmt(e, GA_IMPL_ERROR, "%s: %s: %s", msg, name, descr);
+  const char *name = NULL;
+  const char *descr = NULL;
+  CUresult e1, e2;
+  e = cuGetErrorName(err, &name);
+  if (cuGetErrorString(err, &descr) != CUDA_SUCCESS)
+    descr = "Bad error descriptor";
+  if (e1 != CUDA_SUCCESS)
+    return error_fmt(e, GA_IMPL_ERROR, "%s: Error %d: %s", msg, err, descr);
+  else
+    return error_fmt(e, GA_IMPL_ERROR, "%s: %s: %s", msg, name, descr);
 }
 
 #define GA_CUDA_EXIT_ON_ERROR(ctx, cmd) \
