@@ -45,8 +45,8 @@
 static inline int error_cuda(error *e, const char *msg, CUresult err) {
   const char *name = NULL;
   const char *descr = NULL;
-  CUresult e1, e2;
-  e = cuGetErrorName(err, &name);
+  CUresult e1;
+  e1 = cuGetErrorName(err, &name);
   if (cuGetErrorString(err, &descr) != CUDA_SUCCESS)
     descr = "Bad error descriptor";
   if (e1 != CUDA_SUCCESS)
