@@ -589,8 +589,7 @@ cdef GpuContext pygpu_init(dev, gpucontext_props *p):
 
 def init(dev, sched='default', single_stream=False, kernel_cache_path=None,
          max_cache_size=sys.maxsize, initial_cache_size=0):
-    """
-    init(dev, sched='default', single_stream=False, kernel_cache_path=None,
+    """init(dev, sched='default', single_stream=False, kernel_cache_path=None,
          max_cache_size=sys.maxsize, initial_cache_size=0)
 
     Creates a context from a device specifier.
@@ -620,10 +619,17 @@ def init(dev, sched='default', single_stream=False, kernel_cache_path=None,
         device specifier
     sched: {'default', 'single', 'multi'}
         optimize scheduling for which type of operation
-    disable_alloc_cache: bool
-        disable allocation cache (if any)
     single_stream: bool
         enable single stream mode
+    kernel_cache_path: str
+        Location on the filesystem to store the compiled kernel cache
+        (None disables)
+    max_cache_size: int
+        Maximum size of the memory cache.  Also limits total
+        allocation size for this context.  A limit of 0 disables the
+        cache.
+    initial_cache_size: int
+        Initial size of the memory cache.  Must be smaller than the max size.
 
     """
     cdef gpucontext_props *p = NULL
